@@ -1,4 +1,6 @@
-# aven-vibes
+# avenVIBES
+
+`@myavenceo/aven-vibes`
 
 **A vibe is a complete little app** — view, style, state and logic in one bundle — rendered into an isolated shadow root, or to a string at build time.
 

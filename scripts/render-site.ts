@@ -77,8 +77,8 @@ const footer = (): ViewNode =>
 		{
 			tag: 'a',
 			class: 'muted',
-			text: 'github.com/MyAvenCEO/aven-vibes',
-			attrs: { href: 'https://github.com/MyAvenCEO/aven-vibes' }
+			text: 'github.com/MyAvenCEO/avenVIBES',
+			attrs: { href: 'https://github.com/MyAvenCEO/avenVIBES' }
 		}
 	])
 
