@@ -1,0 +1,55 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>aven-vibes — the interface is data</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="aven-vibes — a vibe is a complete little app: view, style, state and logic, rendered from data.">
+<style>
+:root {
+  --ink: #1f2a3d; --muted: color-mix(in srgb, var(--ink) 62%, transparent);
+  --bg: #faf9f4; --surface: #fffdf7; --line: color-mix(in srgb, var(--ink) 12%, transparent);
+  --accent: #d2a24a; --marine: #1e293b;
+  --measure: 46rem;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 400 16px/1.6 ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased; }
+.page { max-inline-size: var(--measure); margin-inline: auto; padding: 2rem 1.25rem 5rem; }
+.nav { display: flex; align-items: baseline; gap: 1.5rem; flex-wrap: wrap;
+  padding-block-end: 1.5rem; border-block-end: 1px solid var(--line); }
+.brand { font-weight: 600; letter-spacing: -0.02em; text-decoration: none; color: var(--ink); }
+.nav-links { display: flex; gap: 1rem; margin-inline-start: auto; }
+.nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; }
+.nav-links a.on, .nav-links a:hover { color: var(--ink); }
+.hero { padding-block: 3rem 2rem; }
+.eyebrow { font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.16em; color: var(--accent); margin: 0 0 .75rem; }
+.h1 { font-size: clamp(2rem, 6vw, 2.75rem); line-height: 1.1; letter-spacing: -0.03em; margin: 0 0 1rem; }
+.h2 { font-size: 1.25rem; letter-spacing: -0.02em; margin: 0 0 .75rem; }
+.h3 { font-size: 1rem; margin: 0 0 .25rem; }
+.lede { color: var(--muted); font-size: 1.0625rem; margin: 0 0 1.5rem; text-wrap: pretty; }
+.muted { color: var(--muted); }
+.section { padding-block: 2rem; border-block-start: 1px solid var(--line); }
+.code { background: var(--marine); color: #f8fafc; border-radius: .75rem;
+  padding: 1rem 1.25rem; overflow-x: auto; font: 400 13px/1.65 ui-monospace, Menlo, monospace; }
+.code code { white-space: pre; }
+.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--line);
+  border-radius: 1rem; padding: 1.25rem; }
+.list { padding-inline-start: 1.1rem; display: grid; gap: .5rem; margin: 0; }
+.demo { background: var(--surface); border: 1px dashed var(--line);
+  border-radius: 1rem; padding: 1.25rem; margin-block-end: 1rem; }
+.footer { margin-block-start: 3rem; padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--line); display: grid; gap: .35rem; font-size: 14px; }
+.footer a { color: var(--muted); }
+</style>
+<main data-aven-path="0" class="page"><nav data-aven-path="0.0" class="nav"><a data-aven-path="0.0.0" class="brand">aven-vibes</a><div data-aven-path="0.0.1" class="nav-links"><a data-aven-path="0.0.1.0" class="on" href="./index.html">Overview</a><a data-aven-path="0.0.1.1" href="./architecture.html">Architecture</a><a data-aven-path="0.0.1.2" href="./docs.html">Docs</a><a data-aven-path="0.0.1.3" href="./demos.html">Demos</a></div></nav><header data-aven-path="0.1" class="hero"><p data-aven-path="0.1.0" class="eyebrow">A UI framework where the interface is data</p><h1 data-aven-path="0.1.1" class="h1">A vibe is a complete little app.</h1><p data-aven-path="0.1.2" class="lede">View, style, state and logic in one bundle — rendered into an isolated shadow root, or to a string at build time. The interface is data, so it can be stored, versioned, sent over a wire, or generated.</p><pre data-aven-path="0.1.3" class="code"><code data-aven-path="0.1.3.0">bun add @myavenceo/aven-vibes</code></pre></header><section data-aven-path="0.2" class="section"><h2 data-aven-path="0.2.0" class="h2">The whole idea</h2><pre data-aven-path="0.2.1" class="code"><code data-aven-path="0.2.1.0">import { VibeEngine } from '@myavenceo/aven-vibes'
+
+const engine = new VibeEngine({ container: document.querySelector('#app')! })
+
+await engine.mount({
+  view:  { tag: 'button', class: 'btn', text: '{state.label}', $on: { click: { send: 'TICK' } } },
+  style: { tokens: { accent: '#d2a24a' },
+           components: { btn: { background: 'var(--accent)', borderRadius: '9999px' } } },
+  state: { label: 'Clicked 0 times' }
+})</code></pre><p data-aven-path="0.2.2" class="lede">No template compiler, no build step for the view. The bundle is a plain object, and the engine renders it.</p></section><section data-aven-path="0.3" class="section"><h2 data-aven-path="0.3.0" class="h2">Why it is shaped this way</h2><div data-aven-path="0.3.1" class="grid"><article data-aven-path="0.3.1.0" class="card"><h3 data-aven-path="0.3.1.0.0" class="h3">Isolated by construction</h3><p data-aven-path="0.3.1.0.1" class="muted">Every vibe mounts into its own shadow root with its own adopted stylesheet. A vibe cannot leak styles into your page, and your page cannot bleed into it. That is what makes it safe to render a component you did not write.</p></article><article data-aven-path="0.3.1.1" class="card"><h3 data-aven-path="0.3.1.1.0" class="h3">The view is data</h3><p data-aven-path="0.3.1.1.1" class="muted">A view is JSON, not markup. It can be stored in a database, diffed, sent over a wire, or produced by a model — and validated before it renders. Markup in a string can do none of those safely.</p></article><article data-aven-path="0.3.1.2" class="card"><h3 data-aven-path="0.3.1.2.0" class="h3">Logic runs sandboxed</h3><p data-aven-path="0.3.1.2.1" class="muted">A vibe’s behaviour executes in QuickJS compiled to WebAssembly, not on your main thread with your globals. It sees the state you hand it and nothing else.</p></article><article data-aven-path="0.3.1.3" class="card"><h3 data-aven-path="0.3.1.3.0" class="h3">Renders to DOM or to string</h3><p data-aven-path="0.3.1.3.1" class="muted">The same bundle renders into a live shadow root, or to HTML text at build time. Static sites keep their content in the file, where search engines and readers without JavaScript can find it.</p></article></div></section><section data-aven-path="0.4" class="section"><h2 data-aven-path="0.4.0" class="h2">Honest about what it is not</h2><ul data-aven-path="0.4.1" class="list"><li data-aven-path="0.4.1.0" class="muted">Not a React replacement. It renders self-contained units inside an app, not the app itself — routing, data loading and page structure stay with your framework.</li><li data-aven-path="0.4.1.1" class="muted">Not a template language. There is no expression compiler; a view resolves values through an evaluator you supply.</li><li data-aven-path="0.4.1.2" class="muted">Not batteries-included styling. It ships no design system. Tokens arrive through the bundle.</li></ul></section><footer data-aven-path="0.5" class="footer"><p data-aven-path="0.5.0" class="muted">This entire site is rendered by aven-vibes from view definitions. No hand-written HTML.</p><a data-aven-path="0.5.1" class="muted" href="https://github.com/MyAvenCEO/aven-vibes">github.com/MyAvenCEO/aven-vibes</a></footer></main>
