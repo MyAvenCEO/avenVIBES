@@ -81,11 +81,28 @@ function plausible(token: string): boolean {
 	 * The buttons that lost their padding are how it surfaced.
 	 */
 	if (masked.replace(/\d\.\d/g, '').includes('.')) return false
-	if (masked.includes('\u00a7')) return /^-?[A-Za-z_][A-Za-z0-9_:-]*\u00a7$/.test(masked)
-	const [base, alpha, ...extra] = masked.split('/')
+	const [withoutAlpha, alpha, ...extra] = masked.split('/')
 	if (extra.length) return false
 	if (alpha !== undefined && !/^\d+$/.test(alpha)) return false
-	return PLAUSIBLE.test(base)
+
+	/*
+	 * Validate variants and the utility separately. An arbitrary selector masks to
+	 * a WHOLE leading segment — `[&>*]:pointer-events-auto` becomes
+	 * `§:pointer-events-auto` — whereas an arbitrary value ends a normal utility,
+	 * such as `pb-§`. Requiring the complete masked token to begin with a letter
+	 * therefore silently discarded exactly the selector form the emitter supports.
+	 *
+	 * Variants may begin with a digit (`2xl:`); bases may use the emitter's `!`
+	 * escape hatch; and `§` by itself is an arbitrary property. Keeping those
+	 * shapes here means an unknown base reaches utility resolution and becomes the
+	 * promised loud build error instead of disappearing in the scanner.
+	 */
+	const segments = withoutAlpha.split(':')
+	const base = segments.pop() ?? ''
+	if (segments.some((variant) => !/^(?:[A-Za-z0-9_.-]+|\u00a7)$/.test(variant))) return false
+	if (base === '\u00a7') return true
+	if (base.includes('\u00a7')) return /^!?-?[A-Za-z_][A-Za-z0-9_.-]*\u00a7$/.test(base)
+	return /^!?-?[A-Za-z_][A-Za-z0-9_.-]*$/.test(base) && PLAUSIBLE.test(base.replace(/^!/, ''))
 }
 
 /** Read a balanced `{...}` / quoted attribute value starting at `from`. */

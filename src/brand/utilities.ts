@@ -862,9 +862,46 @@ export function createUtilities(brand: Brand) {
 		return null
 	}
 
-	/** CSS needs the colon and brackets escaped in a class selector. */
+	/**
+	 * Escape a utility name as one CSS identifier.
+	 *
+	 * Arbitrary variants put selector punctuation inside the class name itself:
+	 * `[&>*]:pointer-events-auto`. Escaping only colons and brackets leaves `&>*`
+	 * active in the OUTER selector, so the browser drops the entire rule before
+	 * its intended nested `&>*` block can run. This is the CSS.escape algorithm's
+	 * identifier core, kept local because the generator also runs in Node.
+	 */
 	function escapeSelector(name: string): string {
-		return name.replace(/([.:/[\]()#%,!])/g, '\\$1')
+		let escaped = ''
+		let index = 0
+		for (const char of name) {
+			const code = char.codePointAt(0) as number
+			if (code === 0) {
+				escaped += '\uFFFD'
+			} else if (
+				(code >= 1 && code <= 31) ||
+				code === 127 ||
+				(index === 0 && code >= 48 && code <= 57) ||
+				(index === 1 && code >= 48 && code <= 57 && name[0] === '-')
+			) {
+				escaped += `\\${code.toString(16)} `
+			} else if (index === 0 && char === '-' && name.length === 1) {
+				escaped += '\\-'
+			} else if (
+				code >= 128 ||
+				char === '-' ||
+				char === '_' ||
+				(code >= 48 && code <= 57) ||
+				(code >= 65 && code <= 90) ||
+				(code >= 97 && code <= 122)
+			) {
+				escaped += char
+			} else {
+				escaped += `\\${char}`
+			}
+			index++
+		}
+		return escaped
 	}
 
 	/**
