@@ -1192,6 +1192,39 @@ export function createUtilities(brand: Brand) {
 		}
 
 		[hidden] { display: none; }
+
+	}
+
+	/*
+	 * THE REDUCED-MOTION FLOOR.
+	 *
+	 * Every surface gets this, because a motion policy written per component is
+	 * one that is missing wherever nobody remembered — the website shipped with
+	 * none at all and six cards animated regardless of the setting.
+	 *
+	 * Near-zero duration rather than \`animation: none\`. The difference matters:
+	 * \`none\` leaves an element in its START state, so anything an entrance
+	 * animation was revealing never appears. 0.01ms runs the animation to its END
+	 * state instantly, which is the same pixels the animation existed to produce.
+	 *
+	 * Its own layer, declared LAST, and no \`!important\`. Layer order beats
+	 * specificity, so a floor in the reset layer loses to any utility — which is
+	 * exactly what happened: \`.transition-all\` in the utilities layer kept its
+	 * 0.15s no matter how the reset was written. Being last means it wins by
+	 * cascade rather than by force, and a unit that must move under reduce can
+	 * still say so from inside this layer.
+	 */
+	@layer motion {
+		@media (prefers-reduced-motion: reduce) {
+			*,
+			*::before,
+			*::after {
+				animation-duration: 0.01ms;
+				animation-iteration-count: 1;
+				transition-duration: 0.01ms;
+				scroll-behavior: auto;
+			}
+		}
 	}
 	`
 	}

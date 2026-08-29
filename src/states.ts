@@ -68,6 +68,35 @@ export type UnitStyling = {
 	/** Per-state overrides. `default` is a synonym for `base`. */
 	states?: Partial<Record<StateName, Decl>>
 	/**
+	 * Named sub-elements, `part -> declarations`.
+	 *
+	 * A unit larger than one tag has interior pieces — a field's label, hint
+	 * and error; a toast's title and dismiss — and they need names for the same
+	 * reason the unit does. Emitted as `.<unit>-<part>`, so `field-label` is a
+	 * class a view can carry and a caller can never invent.
+	 *
+	 * A variant or state may target one part with `$part`, which is how "the
+	 * invalid field reddens its CONTROL and not its label" is expressible.
+	 */
+	parts?: Record<string, Decl>
+	/**
+	 * Animations this unit owns, `name -> { offset: declarations }`.
+	 *
+	 * Here rather than in a global stylesheet because a unit that animates and
+	 * a keyframe that defines the animation are one thing: shipping the unit
+	 * without its keyframes gives you a spinner that does not spin, silently.
+	 */
+	keyframes?: Record<string, Record<string, Decl>>
+	/**
+	 * What this unit does under `prefers-reduced-motion: reduce`.
+	 *
+	 * Required for any unit that animates, and it is a DECLARATION rather than
+	 * a blanket `animation: none`, because the right answer differs: a spinner
+	 * slows down (a still spinner says nothing), a skeleton stops pulsing, a
+	 * drawer still moves (removing its transform leaves it off-screen).
+	 */
+	reducedMotion?: Decl
+	/**
 	 * Whether this unit is operated by a person.
 	 *
 	 * Set it and the four required states are enforced. It is explicit rather
@@ -78,6 +107,26 @@ export type UnitStyling = {
 }
 
 /**
+ * The keys `styling` may contain.
+ *
+ * Checked, not documented. Twelve units were once written against a contract
+ * that did not yet have `parts`, `keyframes` or `reducedMotion`; the compiler
+ * ignored all three and emitted CSS that looked complete and was missing half
+ * of every unit. Nothing reported it, because dropping an unknown key is
+ * indistinguishable from not having one.
+ */
+const STYLING_KEYS = new Set([
+	'base',
+	'variants',
+	'states',
+	'parts',
+	'keyframes',
+	'reducedMotion',
+	'interactive',
+	'$description'
+])
+
+/**
  * Compile a unit's styling into the flat `components` map the style engine
  * already understands.
  *
@@ -86,34 +135,69 @@ export type UnitStyling = {
  * and the SELECTORS once, centrally, so two components cannot spell the same
  * state differently.
  */
-export function compileUnitStyling(
-	name: string,
-	styling: UnitStyling
-): Record<string, Record<string, unknown>> {
-	const out: Record<string, Record<string, unknown>> = {}
+export function compileUnitStyling(name: string, styling: UnitStyling): Record<string, Decl> {
+	const out: Record<string, Decl> = {}
 
-	const base: Record<string, unknown> = {
+	const base: Decl = {
 		...(styling.base ?? {}),
 		...(styling.states?.default ?? {})
 	}
 
+	const partStates: Record<string, Decl> = {}
 	for (const [state, decl] of Object.entries(styling.states ?? {})) {
 		if (state === 'default' || !decl) continue
 		const selector = STATE_SELECTORS[state as Exclude<StateName, 'default'>]
 		if (!selector) continue
-		base[`&${selector}`] = decl
+		const { $part, ...rest } = decl as Decl & { $part?: string }
+		if ($part) {
+			/* The state lives on the PART's class — `.field-control:focus` — not
+			   on the unit's, because the thing that takes focus is the input. */
+			const key = `${name}-${$part}`
+			;(partStates[key] ??= {})[`&${selector}`] = strip(rest)
+		} else base[`&${selector}`] = strip(rest)
 	}
 
+	if (styling.reducedMotion)
+		base['@media (prefers-reduced-motion: reduce)'] = strip(styling.reducedMotion)
+
 	if (Object.keys(base).length) out[name] = base
+
+	/* Parts: `.field-label`, `.toast-title`. A flat class rather than a nested
+	   selector, so a part can be styled wherever it is placed — including
+	   through a slot, where a descendant selector would not reach it. */
+	for (const [part, decl] of Object.entries(styling.parts ?? {}))
+		out[`${name}-${part}`] = strip(decl)
+
+	/* Merged, not assigned, and AFTER the parts loop: a part usually declares
+	   both a resting look and a state, and assigning either one over the other
+	   silently drops it. */
+	for (const [key, decl] of Object.entries(partStates)) out[key] = { ...out[key], ...decl }
 
 	for (const [axis, options] of Object.entries(styling.variants ?? {}))
 		for (const [option, decl] of Object.entries(options)) {
 			/* `variant` is the default axis and is not repeated in the class name,
 			   so the common case reads `btn--danger` rather than `btn--variant-danger`. */
 			const suffix = axis === 'variant' ? option : `${axis}-${option}`
-			out[`${name}--${suffix}`] = { ...decl }
+			const { $part, ...rest } = decl as Decl & { $part?: string }
+			/* A variant may dress ONE part: `size: sm` on a field shrinks the
+			   control, not the label. Without this the whole unit would have to
+			   carry a variant that only one of its pieces means. */
+			out[$part ? `${name}-${$part}--${suffix}` : `${name}--${suffix}`] = strip(rest)
 		}
 
+	for (const [animation, frames] of Object.entries(styling.keyframes ?? {})) {
+		const compiled: Decl = {}
+		for (const [offset, decl] of Object.entries(frames)) compiled[offset] = strip(decl)
+		out[`@keyframes ${animation}`] = compiled
+	}
+
+	return out
+}
+
+/** Drop the documentation keys, which are for a reader and not for a browser. */
+function strip(decl: Decl): Decl {
+	const out: Decl = {}
+	for (const [k, v] of Object.entries(decl)) if (!k.startsWith('$')) out[k] = v
 	return out
 }
 
@@ -132,6 +216,36 @@ export function compileUnitStyling(
  */
 export function checkStateContract(name: string, styling: UnitStyling): string[] {
 	const problems: string[] = []
+
+	/*
+	 * An unknown key is a typo or a feature the compiler does not have, and both
+	 * produce the same thing: declarations that vanish. This check exists
+	 * because twelve units were once written with `parts`, `keyframes` and
+	 * `reducedMotion` against a compiler that had none of them, and every one of
+	 * them compiled cleanly while emitting half its CSS.
+	 */
+	for (const key of Object.keys(styling))
+		if (!STYLING_KEYS.has(key))
+			problems.push(
+				`"${name}" declares \`styling.${key}\`, which nothing compiles — it would be dropped silently`
+			)
+
+	/*
+	 * A unit that animates must say what it does under `reduce`. Not a nicety:
+	 * an entrance animation is often the only thing that reveals the content, so
+	 * a blanket `animation: none` applied by a user's setting can leave the
+	 * element invisible. Saying it per unit is the only way to get it right.
+	 */
+	const animates =
+		styling.keyframes ||
+		JSON.stringify({ b: styling.base, v: styling.variants, p: styling.parts }).match(
+			/"(animation|transition)[A-Za-z]*":/
+		)
+	if (animates && !styling.reducedMotion)
+		problems.push(
+			`"${name}" animates but declares no \`reducedMotion\` — say what it does under reduce`
+		)
+
 	if (!styling.interactive) return problems
 
 	const declared = styling.states ?? {}

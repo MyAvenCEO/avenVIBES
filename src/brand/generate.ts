@@ -257,7 +257,13 @@ export function createGenerator(brand: Brand) {
 			' * after every declared one, so leaving the reset off this line would have',
 			' * given it the last word over every utility in the codebase — a reset that',
 			' * wins is not a reset. */',
-			'@layer reset, tokens, base, primitives, components, utilities;',
+			'@layer reset, tokens, base, primitives, components, utilities, motion;',
+			'',
+			'/* `motion` is LAST on purpose. The reduced-motion floor lives there, and',
+			' * layer order beats specificity: a floor written into the reset layer is',
+			' * overridden by any utility, which is how `.transition-all` kept its 0.15s',
+			' * through a correctly written reset. Last means it wins by cascade rather',
+			' * than by `!important`. */',
 			'',
 			'@layer primitives {',
 			'\t/* The shapes almost every layout is made of. Each is one idea, tuned',
@@ -270,7 +276,13 @@ export function createGenerator(brand: Brand) {
 			'',
 			'@layer components {',
 			Object.entries(COMPONENTS)
-				.map(([name, decls]) => emitRule(`.${name}`, decls as Record<string, unknown>))
+				/* An at-rule is its own selector. `@keyframes aven-spin` prefixed with
+				   a dot is `.@keyframes aven-spin`, which is not a selector at all —
+				   lightningcss rejects it and the whole stylesheet fails to build.
+				   A unit's keyframes travel with the unit, so they arrive here. */
+				.map(([name, decls]) =>
+					emitRule(name.startsWith('@') ? name : `.${name}`, decls as Record<string, unknown>)
+				)
 				.join('\n\n'),
 			'}',
 			''

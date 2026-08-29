@@ -29,6 +29,7 @@
  * behaviour that runs in a sandbox if it declares any. It cannot see inside
  * another unit and no other unit can see inside it.
  */
+import type { Decl } from './brand/types.js'
 import type { UnitStyling } from './states.js'
 import { checkStateContract, compileUnitStyling, variantClasses } from './states.js'
 import type { RenderData, StyleDef, ViewNode } from './types.js'
@@ -262,8 +263,8 @@ export function expandUse(
  * on where it is placed, which is the whole reason a design system can have a
  * stylesheet at all.
  */
-export function registryStyles(registry: UnitRegistry): Record<string, Record<string, unknown>> {
-	const out: Record<string, Record<string, unknown>> = {}
+export function registryStyles(registry: UnitRegistry): Record<string, Decl> {
+	const out: Record<string, Decl> = {}
 	for (const unit of Object.values(registry))
 		if (unit.styling) Object.assign(out, compileUnitStyling(unit.name, unit.styling))
 	return out
