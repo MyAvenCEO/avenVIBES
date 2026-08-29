@@ -252,6 +252,18 @@ suite('a scale that is not emitted is a scale that does not exist', () => {
 	 * is exactly why this has to be checked where the tokens are assembled
 	 * rather than trusted to turn up in the output.
 	 */
+	test('ANY declared group reaches scaleTokens, not just the enumerated ones', () => {
+		/* The allowlist is what caused the bug it was written to fix. Naming
+		   `motion` fixed one case and left `z` — referenced twice, defined
+		   nowhere, so a fixed drawer had no stacking order and sat behind the
+		   content it was covering. */
+		const doc = completeBrand()
+		doc.scale.z = { 'z-overlay': { $value: '100' }, 'z-sticky': { $value: '50' } }
+		const brand = brandFromDocuments(doc, pieces)
+		expect(brand.scaleTokens['z-overlay']).toBe('100')
+		expect(brand.scaleTokens['z-sticky']).toBe('50')
+	})
+
 	test('a motion group reaches scaleTokens', () => {
 		const doc = completeBrand()
 		doc.scale.motion = {

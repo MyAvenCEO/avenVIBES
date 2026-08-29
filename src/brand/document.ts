@@ -247,6 +247,14 @@ export function brandFromDocuments(
 	validateBrandDocument(brandDoc)
 	validateComponentsDocument(componentsDoc)
 
+/**
+ * The scale groups this file reads by NAME, because their shape is known:
+ * `alpha` is nested two deep, and the rest are pulled out individually
+ * elsewhere. Everything else a brand declares under `scale` is passed through
+ * as-is, so a new axis needs no change here to exist.
+ */
+const KNOWN_SCALES = new Set(['type', 'tracking', 'alpha', 'elevation', 'radius', 'space'])
+
 	const scales: BrandScales = {
 		type: flatten(brandDoc.scale.type),
 		tracking: flatten(brandDoc.scale.tracking),
@@ -257,11 +265,26 @@ export function brandFromDocuments(
 		elevation: flatten(brandDoc.scale.elevation),
 		radius: flatten(brandDoc.scale.radius),
 		space: flatten(brandDoc.scale.space),
-		/* Optional: a brand may have no motion, and one that does not should not
-		   be forced to declare an empty group. A brand that DOES gets its
-		   durations and easings as real custom properties instead of every
-		   `transition` in its component library silently resolving to nothing. */
-		...(brandDoc.scale.motion ? { motion: flatten(brandDoc.scale.motion) } : {})
+		/*
+		 * Every OTHER group in `scale`, whatever it is called.
+		 *
+		 * This was an allowlist, and the allowlist is what caused the bug it was
+		 * written to fix: a brand declared no motion, the list had no motion entry
+		 * to spread, and every `transition` in a component library resolved to
+		 * nothing. Adding `motion` to the list fixed that one case and left the
+		 * next one — `z`, referenced twice and defined nowhere, so a fixed drawer
+		 * had no stacking order and sat behind the content it was covering.
+		 *
+		 * A scale a brand declares is a scale the brand meant. The named groups
+		 * above stay named because their SHAPE is known — `alpha` is nested, and
+		 * the rest are read individually elsewhere — but nothing else has to be
+		 * enumerated here to exist.
+		 */
+		...Object.fromEntries(
+			Object.entries(brandDoc.scale)
+				.filter(([key]) => !KNOWN_SCALES.has(key) && !key.startsWith('$'))
+				.map(([key, group]) => [key, flatten(group as DtcgGroup)])
+		)
 	}
 
 	const fonts = flatten(brandDoc.font.stack)
@@ -286,9 +309,16 @@ export function brandFromDocuments(
 			...scales.elevation,
 			...scales.radius,
 			...scales.space,
-			...(scales.motion ?? {}),
 			...scales.alpha['on-text'],
-			...scales.alpha['on-surface']
+			...scales.alpha['on-surface'],
+			/* Extras LAST, so a brand adding a group cannot silently shadow a
+			   named one — a `space` group declared twice should keep the parsed
+			   one, not the loose one. */
+			...Object.fromEntries(
+				Object.entries(scales).flatMap(([key, group]) =>
+					KNOWN_SCALES.has(key) ? [] : Object.entries(group as TokenMap)
+				)
+			)
 		},
 
 		layouts: componentsDoc.layouts,
