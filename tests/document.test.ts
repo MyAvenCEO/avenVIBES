@@ -18,6 +18,7 @@ import {
 	validateComponentsDocument,
 	withAlpha
 } from '../src/brand/document.js'
+import { createGenerator } from '../src/brand/generate.js'
 
 /** The smallest document that is a complete brand. */
 function completeBrand() {
@@ -281,5 +282,63 @@ suite('a scale that is not emitted is a scale that does not exist', () => {
 		const brand = brandFromDocuments(completeBrand(), pieces)
 		expect(brand.scaleTokens['duration-quick']).toBeUndefined()
 		expect(Object.keys(brand.scaleTokens).length).toBeGreaterThan(0)
+	})
+})
+
+suite('two vibes on one page', () => {
+	/*
+	 * avenCEO's `--color-primary` is marine. avenYMA's is navy. Both were written
+	 * to `:root`, so the second stylesheet loaded won for the whole document —
+	 * every button, every border, both brands. The class layer collided the same
+	 * way: both emit `.card`, and one definition wins.
+	 *
+	 * A scope fixes both. Custom properties inherit, so tokens on a host reach
+	 * everything inside it and nothing outside; the component layer nested under
+	 * the same host means each brand's `.card` applies only within its own vibe.
+	 *
+	 * `:where()` is what makes it safe. Without it the scope adds specificity, a
+	 * scoped rule out-weighs a surface's own override, and the escape hatch is
+	 * `!important` — which is how prefix-based scoping schemes end.
+	 */
+	test('an unscoped brand still writes :root, unchanged', () => {
+		const { themeCss } = createGenerator(brandFromDocuments(completeBrand(), pieces))
+		expect(themeCss('web')).toContain(':root {')
+		expect(themeCss('web')).not.toContain(':where(')
+	})
+
+	test('a scoped brand writes its tokens on the host instead', () => {
+		const { themeCss } = createGenerator(brandFromDocuments(completeBrand(), pieces))
+		const css = themeCss('web', '[data-vibe="avenceo"]')
+		expect(css).toContain(':where([data-vibe="avenceo"]) {')
+		expect(css).not.toContain(':root {')
+	})
+
+	test('a scoped brand nests its components under the same host', () => {
+		const { componentCss } = createGenerator(brandFromDocuments(completeBrand(), pieces))
+		const css = componentCss('[data-vibe="avenceo"]')
+		expect(css).toContain(':where([data-vibe="avenceo"]) .card')
+	})
+
+	test('scoping costs no specificity', () => {
+		/* The whole point. `:where()` weighs zero, so a scoped `.card` and a bare
+		   `.card` are both (0,1,0) and a surface override still wins. */
+		const { componentCss } = createGenerator(brandFromDocuments(completeBrand(), pieces))
+		const css = componentCss('[data-vibe="avenceo"]')
+		expect(css).not.toMatch(/(?<!:where\()\[data-vibe="avenceo"\] \.card/)
+	})
+
+	test('at-rules are never scoped', () => {
+		/* `@keyframes` has no element to sit inside. Prefixed, it stops being a
+		   selector and lightningcss rejects the whole stylesheet. */
+		const withKeyframes = {
+			...pieces,
+			components: { ...pieces.components, '@keyframes spin': { from: { opacity: '0' } } }
+		}
+		const { componentCss } = createGenerator(
+			brandFromDocuments(completeBrand(), withKeyframes as never)
+		)
+		const css = componentCss('[data-vibe="avenceo"]')
+		expect(css).toContain('@keyframes spin')
+		expect(css).not.toContain(':where([data-vibe="avenceo"]) @keyframes')
 	})
 })
