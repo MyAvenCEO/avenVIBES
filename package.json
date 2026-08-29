@@ -1,6 +1,6 @@
 {
 	"name": "@myavenceo/aven-vibes",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"type": "module",
 	"description": "A vibe is a complete little app \u2014 view, style, state and logic \u2014 rendered from data into an isolated shadow root, or to a string at build time.",
 	"license": "MIT",

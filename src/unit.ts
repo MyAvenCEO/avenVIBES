@@ -226,8 +226,16 @@ export function expandUse(
 	const problems = checkPlacement(use, unit)
 	if (problems.length) throw new Error(`placing "${use.unit}": ${problems.join('; ')}`)
 
+	/*
+	 * A unit that declares styling always wears its own class.
+	 *
+	 * This used to come out of `variantClasses`, which names the unit and then
+	 * its chosen options — so a unit placed WITHOUT variants got no class at
+	 * all and rendered unstyled. `nav-link` did exactly that, and it was
+	 * invisible in tests because every fixture happened to pass a variant.
+	 */
 	const layout = layoutClasses(unit.layout)
-	const variants = use.variants ? variantClasses(unit.name, use.variants) : ''
+	const variants = unit.styling ? variantClasses(unit.name, use.variants ?? {}) : ''
 	const extra = [layout, variants].filter(Boolean).join(' ')
 	const node: ViewNode = extra
 		? { ...unit.view, class: [extra, unit.view.class].filter(Boolean).join(' ') }
