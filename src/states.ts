@@ -46,7 +46,18 @@ export const STATE_SELECTORS: Record<Exclude<StateName, 'default'>, string> = {
 	disabled: '[disabled], &[aria-disabled="true"]',
 	loading: '[aria-busy="true"]',
 	error: '[data-state~="error"], &[aria-invalid="true"]',
-	selected: '[aria-selected="true"], &[aria-pressed="true"]'
+	/* Three attributes, because 'this is the current one' is spelled three ways
+	   and each is correct in its own place. `aria-selected` belongs to a tab, an
+	   option, a grid cell; `aria-pressed` to a toggle button; and `aria-current`
+	   to a link in a navigation — the current PAGE is not a selected option, and
+	   putting `aria-selected` on an `<a>` is invalid ARIA that axe rejects. A
+	   sidebar could therefore document a selected state, declare it, mark its
+	   current item the only correct way, and render nothing.
+	   `:not([aria-current="false"])` because `aria-current="false"` is the
+	   attribute's own way of saying 'not this one', and a bare `[aria-current]`
+	   would match it. */
+	selected:
+		'[aria-selected="true"], &[aria-pressed="true"], &[aria-current]:not([aria-current="false"])'
 }
 
 /**
