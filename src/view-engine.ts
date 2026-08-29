@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
+import { HOST, type MessageCatalog, MessageRouter, resolveAddress, translate } from './messages.js'
 import {
 	BOOLEAN_ATTRS,
 	SAFE_TAGS,
@@ -8,15 +9,8 @@ import {
 	URL_ATTRS
 } from './security.js'
 import { StyleEngine } from './style-engine.js'
-import type {
-	RenderData,
-	SlotRegistry,
-	StyleDef,
-	UiEvent,
-	UiEventDef,
-	ViewDef,
-	ViewNode
-} from './types.js'
+import type { RenderData, StyleDef, UiEvent, UiEventDef, ViewDef, ViewNode } from './types.js'
+import { expandUse, type UnitRegistry } from './unit.js'
 import { Evaluator, validateViewDef } from './view-validator.js'
 
 /**
@@ -52,8 +46,13 @@ function setAttr(element: HTMLElement, name: string, value: unknown): void {
 
 export type ViewEngineOptions = {
 	onEvent?: (event: UiEvent) => void
-	slots?: SlotRegistry
 	containerName?: string
+	/** Units a `$use` may place. */
+	units?: UnitRegistry
+	/** The locale's copy, for `$t`. */
+	messages?: MessageCatalog
+	/** Shared with the caller so a host can register inboxes of its own. */
+	router?: MessageRouter
 }
 
 type FocusSnapshot = {
@@ -66,14 +65,26 @@ export class ViewEngine {
 	private readonly evaluator = new Evaluator()
 	private readonly styleEngine = new StyleEngine()
 	private onEvent?: (event: UiEvent) => void
-	private slots: SlotRegistry = {}
 	private containerName = 'aven-ui'
 	private currentState: Record<string, unknown> = {}
+	private units: UnitRegistry = {}
+	private messages: MessageCatalog = {}
+	private router = new MessageRouter()
 
 	configure(options: ViewEngineOptions): void {
 		this.onEvent = options.onEvent
-		this.slots = options.slots ?? {}
 		this.containerName = options.containerName ?? 'aven-ui'
+		this.units = options.units ?? {}
+		this.messages = options.messages ?? {}
+		if (options.router) this.router = options.router
+		/* The surface outside the vibe is an inbox like any other, which is what
+		   makes `$host` the default and keeps every pre-address view working. */
+		this.router.setHost(options.onEvent)
+	}
+
+	/** The router, so a host can register its own inboxes against this vibe. */
+	messageRouter(): MessageRouter {
+		return this.router
 	}
 
 	async mount(
@@ -170,7 +181,7 @@ export class ViewEngine {
 		}
 
 		if (node.text !== undefined) {
-			const textValue = await this.evaluator.evaluate(node.text, data)
+			const textValue = await this.resolveText(node.text, data)
 			const formatMd = node.format === 'md' || node.format === 'markdown'
 			if (formatMd && (typeof textValue === 'string' || textValue == null)) {
 				element.innerHTML = await renderMarkdown(String(textValue || ''))
@@ -179,12 +190,15 @@ export class ViewEngine {
 			}
 		}
 
-		if (node.$each) {
+		if (node.$use) {
+			const placed = await this.renderUse(node, data, path)
+			if (placed) element.appendChild(placed)
+		} else if (node.$children) {
+			element.appendChild(await this.renderChildren(node.$children, data, path))
+		} else if (node.$each) {
 			element.innerHTML = ''
 			const fragment = await this.renderEach(node.$each, data, path)
 			element.appendChild(fragment)
-		} else if (node.$slot) {
-			await this.renderSlot(node, data, element)
 		} else if (node.children && !node.$each) {
 			for (let i = 0; i < node.children.length; i++) {
 				const child = node.children[i]
@@ -198,6 +212,63 @@ export class ViewEngine {
 		}
 
 		return element
+	}
+
+	/**
+	 * A text value, which may be a message reference rather than an expression.
+	 *
+	 * `{ $t: 'pricing.cta' }` looks up the catalog; anything else evaluates as
+	 * before. Interpolation values are evaluated first, so a message can carry a
+	 * count that came from state.
+	 */
+	private async resolveText(text: unknown, data: RenderData): Promise<unknown> {
+		if (text && typeof text === 'object' && '$t' in (text as object)) {
+			const ref = text as { $t: string; values?: Record<string, unknown> }
+			const values: Record<string, unknown> = {}
+			for (const [k, v] of Object.entries(ref.values ?? {}))
+				values[k] = await this.evaluator.evaluate(v, data)
+			return translate(ref.$t, this.messages, values)
+		}
+		return this.evaluator.evaluate(text, data)
+	}
+
+	/**
+	 * Place a unit: resolve its props in the CALLER's scope, then render it in
+	 * its own.
+	 *
+	 * The order is the boundary. Props are expressions the parent wrote, so they
+	 * must see the parent's state; everything inside the unit then sees only its
+	 * own state and those resolved values.
+	 */
+	private async renderUse(
+		node: ViewNode,
+		data: RenderData,
+		path: string
+	): Promise<HTMLElement | null> {
+		const use = node.$use
+		if (!use) return null
+		const resolved: Record<string, unknown> = {}
+		for (const [name, expr] of Object.entries(use.props ?? {}))
+			resolved[name] = await this.evaluator.evaluate(expr, data)
+		const expanded = expandUse(use, this.units, data, resolved)
+		return this.renderNode(expanded.node, expanded.data, `${path}~${use.unit}`)
+	}
+
+	/** Render the children a parent passed into a named slot. */
+	private async renderChildren(
+		name: string,
+		data: RenderData,
+		path: string
+	): Promise<DocumentFragment> {
+		const fragment = document.createDocumentFragment()
+		const passed = data.slots?.[name]
+		if (!passed) return fragment
+		const nodes = Array.isArray(passed) ? passed : [passed]
+		for (let i = 0; i < nodes.length; i++) {
+			const el = await this.renderNode(nodes[i], data, `${path}.${name}.${i}`)
+			if (el) fragment.appendChild(el)
+		}
+		return fragment
 	}
 
 	private async renderEach(
@@ -216,17 +287,6 @@ export class ViewEngine {
 			if (itemElement) fragment.appendChild(itemElement)
 		}
 		return fragment
-	}
-
-	private async renderSlot(node: ViewNode, data: RenderData, wrapper: HTMLElement): Promise<void> {
-		const slotKey = node.$slot
-		if (!slotKey?.startsWith('$')) return
-		const registryKey = slotKey.slice(1)
-		const slotView = this.slots[registryKey] ?? this.slots[slotKey]
-		if (!slotView) return
-		const slotNode = (slotView as ViewDef).content ?? slotView
-		const child = await this.renderNode(slotNode as ViewNode, data)
-		if (child) wrapper.appendChild(child)
 	}
 
 	private attachEvents(
@@ -259,7 +319,16 @@ export class ViewEngine {
 			? await this.resolvePayload(eventDef.payload, data, sourceEl, domEvent)
 			: {}
 		const sanitized = sanitizePayloadForValidation(payload)
-		this.onEvent?.({ send: eventDef.send, payload: sanitized as Record<string, unknown> })
+		/* Routed by ADDRESS, not by tree position. An unaddressed message means
+		   `$host`, so every view written before inboxes existed behaves as it
+		   always did. */
+		const selfId = sourceEl.getAttribute('data-aven-path') ?? HOST
+		const parentId = selfId.includes('.') ? selfId.slice(0, selfId.lastIndexOf('.')) : null
+		const address = resolveAddress(eventDef.to, selfId, parentId)
+		await this.router.deliver(
+			{ send: eventDef.send, payload: sanitized as Record<string, unknown> },
+			address
+		)
 		if (domEvent?.type === 'submit' && sourceEl instanceof HTMLFormElement) {
 			sourceEl.reset()
 		}

@@ -14,6 +14,22 @@
 /* The guideline page IS a view, so the type comes out with it — a consumer
    cannot annotate what it cannot name. */
 export type { ViewDef } from '../types.js'
+export {
+	type BrandColorGroups,
+	type BrandDocument,
+	type BrandScaleGroups,
+	brandFromDocuments,
+	type ComponentsDocument,
+	type DtcgGroup,
+	type DtcgToken,
+	describe,
+	descriptions,
+	flatten,
+	nearestStepOn,
+	validateBrandDocument,
+	validateComponentsDocument,
+	withAlpha
+} from './document.js'
 export { createGenerator, type Generator } from './generate.js'
 export { createKitchenSink, type KitchenSink } from './kitchen-sink.js'
 export {
