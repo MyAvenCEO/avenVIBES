@@ -23,6 +23,7 @@ export function createGenerator(brand: Brand) {
 
 	const TONES = brand.tones
 	const CREAMS = brand.creams
+	const CONTRAST_INK = brand.contrastInk
 	const SURFACES = brand.surfaces
 	const ROLES = brand.roles
 	const SITE_ROLES = brand.siteRoles
@@ -91,6 +92,21 @@ export function createGenerator(brand: Brand) {
 			block('1 · THE BRAND TONES — the paint, each spelled exactly once', Object.entries(TONES)),
 			'',
 			block('the cream family, lightest to warmest', Object.entries(CREAMS)),
+			'',
+			/*
+			 * The contrast inks, which this never used to emit.
+			 *
+			 * It got away with that for as long as every brand inlined them as raw
+			 * hex inside its role values — the colour reached the page, just not by
+			 * name. The moment avenCEO named them and pointed its `*-foreground`
+			 * roles at them, all six resolved to nothing and every piece of text on
+			 * a filled tone lost its colour.
+			 *
+			 * They belong in `:root` like any other primitive: a role may only
+			 * reference what the theme declares, and the ink guaranteed to read on
+			 * a filled tone is exactly the kind of thing a role needs to reference.
+			 */
+			block('the inks guaranteed to read on a filled tone', Object.entries(CONTRAST_INK)),
 			'',
 			block('2 · THE SURFACES — which rung each part stands on', Object.entries(SURFACES)),
 			'',

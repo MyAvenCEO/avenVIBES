@@ -40,6 +40,12 @@ export function createKitchenSink(brand: Brand) {
 	 * marketing site will use — so if `renderViewToString` cannot carry a real
 	 * page, it fails here rather than in production.
 	 *
+	 * The chrome references ROLES (`--color-foreground`), never a brand's tones.
+	 * It used to say `--color-ink`, which is a colour avenCEO happens to have —
+	 * so the page rendered correctly for exactly as long as that brand kept a
+	 * tone by that name, and broke silently the moment it was renamed. Every
+	 * brand has `foreground`, because the contract requires it.
+	 *
 	 * The view carries CLASSES, never inline styles. Swatches and specimens get
 	 * their colours from generated helper classes (see `kitchenSinkCss`), which
 	 * keeps the demonstration honest: everything on the page is drawn with the
@@ -294,11 +300,11 @@ export function createKitchenSink(brand: Brand) {
 			helpers.push(`.ks-${name} { letter-spacing: var(--${name}); text-transform: uppercase; }`)
 		for (const name of Object.keys(INK_SCALE))
 			helpers.push(
-				`.ks-${name} { color: color-mix(in srgb, var(--color-ink) calc(var(--${name}) * 100%), transparent); }`
+				`.ks-${name} { color: color-mix(in srgb, var(--color-foreground) calc(var(--${name}) * 100%), transparent); }`
 			)
 		for (const name of Object.keys(TINT_SCALE))
 			helpers.push(
-				`.ks-${name} { background: color-mix(in srgb, var(--color-ink) calc(var(--${name}) * 100%), transparent); }`
+				`.ks-${name} { background: color-mix(in srgb, var(--color-foreground) calc(var(--${name}) * 100%), transparent); }`
 			)
 		for (const name of Object.keys(ELEVATION_SCALE))
 			helpers.push(`.ks-${name} { box-shadow: var(--${name}); }`)
@@ -326,12 +332,12 @@ export function createKitchenSink(brand: Brand) {
 			'\t.ks-swatch { inline-size: 7rem; }',
 			'\t.ks-swatch-name { font-size: var(--fs-micro); margin: .35rem 0 0; }',
 			'\t.ks-chip { block-size: 3rem; border-radius: var(--radius-inner); }',
-			'\t.ks-row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; border-block-end: 1px solid color-mix(in srgb, var(--color-ink) 8%, transparent); padding-block-end: .4rem; }',
+			'\t.ks-row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; border-block-end: 1px solid color-mix(in srgb, var(--color-foreground) 8%, transparent); padding-block-end: .4rem; }',
 			'\t.ks-row-meta { flex-shrink: 0; }',
 			'\t.ks-tint { block-size: 1.5rem; inline-size: 8rem; border-radius: var(--radius-chip); }',
 			'\t.ks-space { block-size: 1rem; background: var(--color-anchor); border-radius: 2px; }',
 			'\t.ks-box { background: var(--color-surface-raised); border: 1px solid var(--color-border); border-radius: var(--radius-inner); padding: 1rem; font-size: var(--fs-micro); }',
-			'\t.ks-demo { border: 1px dashed color-mix(in srgb, var(--color-ink) 16%, transparent); border-radius: var(--radius-inner); padding: var(--space-snug); }',
+			'\t.ks-demo { border: 1px dashed color-mix(in srgb, var(--color-foreground) 16%, transparent); border-radius: var(--radius-inner); padding: var(--space-snug); }',
 			'\t.ks-frame { --ratio: 16 / 9; max-inline-size: 20rem; }',
 			'\t.ks-full { inline-size: 100%; }',
 			'',

@@ -200,3 +200,39 @@ suite('colour arithmetic', () => {
 		expect(nearestStepOn(ink, 100)).toBe('ink-full')
 	})
 })
+
+suite('the theme declares everything its roles reference', () => {
+	/**
+	 * The bug this locks down, which shipped undetected for months: the generator
+	 * emitted tones, creams, surfaces and roles but NOT the contrast inks. It got
+	 * away with it while brands inlined those as raw hex inside role values — the
+	 * colour reached the page, just not by name. The moment a brand named them and
+	 * pointed its `*-foreground` roles at them, all six resolved to nothing and
+	 * every piece of text on a filled tone lost its colour.
+	 */
+	test('every var(--color-…) a role uses is declared in :root', async () => {
+		const { createGenerator } = await import('../src/brand/generate.js')
+		const { brandFromDocuments } = await import('../src/brand/document.js')
+		const doc = completeBrand()
+		doc.color.contrastInk = { 'on-brand': { $type: 'color', $value: '#111111' } }
+		doc.color.roles = {
+			primary: { $value: '#123456' },
+			'primary-foreground': { $value: 'var(--color-on-brand)' }
+		}
+		const css = createGenerator(brandFromDocuments(doc, pieces)).themeCss('web')
+
+		const declared = new Set([...css.matchAll(/^\s*(--[a-z0-9-]+):/gm)].map((m) => m[1]))
+		const referenced = [...css.matchAll(/var\((--color-[a-z0-9-]+)/g)].map((m) => m[1])
+		const dangling = referenced.filter((r) => !declared.has(r))
+		expect(dangling).toEqual([])
+	})
+
+	test('and the contrast inks specifically reach the stylesheet', async () => {
+		const { createGenerator } = await import('../src/brand/generate.js')
+		const { brandFromDocuments } = await import('../src/brand/document.js')
+		const doc = completeBrand()
+		doc.color.contrastInk = { 'on-brand': { $type: 'color', $value: '#abcdef' } }
+		const css = createGenerator(brandFromDocuments(doc, pieces)).themeCss('web')
+		expect(css).toContain('--color-on-brand: #abcdef')
+	})
+})
