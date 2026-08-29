@@ -314,9 +314,9 @@ export function createKitchenSink(brand: Brand) {
 			'\t.ks-header { margin-block-end: 3rem; }',
 			/* The chrome's own type. It borrowed the brand's `eyebrow-accent`, `lede`,
 			   `meta` and `mono-meta` until the first brand that had none of them. */
-			'\t.ks-eyebrow { font-size: var(--fs-micro); letter-spacing: var(--tracking-wider); text-transform: uppercase; color: color-mix(in oklab, var(--color-foreground) 55%, transparent); margin: 0; }',
+			'\t.ks-eyebrow { font-size: var(--fs-micro); letter-spacing: var(--tracking-wider); text-transform: uppercase; color: color-mix(in oklab, var(--color-foreground) 72%, transparent); margin: 0; }',
 			'\t.ks-lede { font-size: var(--fs-meta); color: color-mix(in oklab, var(--color-foreground) 72%, transparent); margin: 0; max-inline-size: 60ch; }',
-			'\t.ks-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-nano); color: color-mix(in oklab, var(--color-foreground) 55%, transparent); }',
+			'\t.ks-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-nano); color: color-mix(in oklab, var(--color-foreground) 72%, transparent); }',
 			/* A specimen shows a component AS ITSELF, so it must add nothing of its
 			   own beyond room to be seen. */
 			'\t.ks-specimen { min-inline-size: 0; }',
