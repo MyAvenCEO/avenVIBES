@@ -9,15 +9,7 @@ import {
 	URL_ATTRS
 } from './security.js'
 import { StyleEngine } from './style-engine.js'
-import type {
-	RenderData,
-	SlotRegistry,
-	StyleDef,
-	UiEvent,
-	UiEventDef,
-	ViewDef,
-	ViewNode
-} from './types.js'
+import type { RenderData, StyleDef, UiEvent, UiEventDef, ViewDef, ViewNode } from './types.js'
 import { expandUse, type UnitRegistry } from './unit.js'
 import { Evaluator, validateViewDef } from './view-validator.js'
 
@@ -54,7 +46,6 @@ function setAttr(element: HTMLElement, name: string, value: unknown): void {
 
 export type ViewEngineOptions = {
 	onEvent?: (event: UiEvent) => void
-	slots?: SlotRegistry
 	containerName?: string
 	/** Units a `$use` may place. */
 	units?: UnitRegistry
@@ -74,7 +65,6 @@ export class ViewEngine {
 	private readonly evaluator = new Evaluator()
 	private readonly styleEngine = new StyleEngine()
 	private onEvent?: (event: UiEvent) => void
-	private slots: SlotRegistry = {}
 	private containerName = 'aven-ui'
 	private currentState: Record<string, unknown> = {}
 	private units: UnitRegistry = {}
@@ -83,7 +73,6 @@ export class ViewEngine {
 
 	configure(options: ViewEngineOptions): void {
 		this.onEvent = options.onEvent
-		this.slots = options.slots ?? {}
 		this.containerName = options.containerName ?? 'aven-ui'
 		this.units = options.units ?? {}
 		this.messages = options.messages ?? {}
@@ -210,8 +199,6 @@ export class ViewEngine {
 			element.innerHTML = ''
 			const fragment = await this.renderEach(node.$each, data, path)
 			element.appendChild(fragment)
-		} else if (node.$slot) {
-			await this.renderSlot(node, data, element)
 		} else if (node.children && !node.$each) {
 			for (let i = 0; i < node.children.length; i++) {
 				const child = node.children[i]
@@ -300,17 +287,6 @@ export class ViewEngine {
 			if (itemElement) fragment.appendChild(itemElement)
 		}
 		return fragment
-	}
-
-	private async renderSlot(node: ViewNode, data: RenderData, wrapper: HTMLElement): Promise<void> {
-		const slotKey = node.$slot
-		if (!slotKey?.startsWith('$')) return
-		const registryKey = slotKey.slice(1)
-		const slotView = this.slots[registryKey] ?? this.slots[slotKey]
-		if (!slotView) return
-		const slotNode = (slotView as ViewDef).content ?? slotView
-		const child = await this.renderNode(slotNode as ViewNode, data)
-		if (child) wrapper.appendChild(child)
 	}
 
 	private attachEvents(

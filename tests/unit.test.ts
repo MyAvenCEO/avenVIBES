@@ -7,9 +7,16 @@
  */
 import { expect, describe as suite, test } from 'bun:test'
 import { HOST, MessageRouter, resolveAddress, translate } from '../src/messages.js'
+import { compileUnitStyling, STATE_SELECTORS } from '../src/states.js'
 import { renderViewToString } from '../src/string-renderer.js'
 import type { UnitRegistry } from '../src/unit.js'
-import { checkPlacement, layoutClasses, validateRegistry, validateUnit } from '../src/unit.js'
+import {
+	checkPlacement,
+	layoutClasses,
+	unitsWithLogic,
+	validateRegistry,
+	validateUnit
+} from '../src/unit.js'
 import { Evaluator } from '../src/view-validator.js'
 
 const evaluator = new Evaluator()
@@ -178,8 +185,12 @@ suite('inbox addressing', () => {
 		const router = new MessageRouter()
 		let got: string | null = null
 		/* Two units under one parent; one names the other directly. */
-		router.register('0.1', () => void (got = 'sibling-a'))
-		router.register('0.2', () => void (got = 'sibling-b'))
+		router.register('0.1', () => {
+			got = 'sibling-a'
+		})
+		router.register('0.2', () => {
+			got = 'sibling-b'
+		})
 		await router.deliver({ send: 'sync', payload: {} }, '0.2')
 		expect(got).toBe('sibling-b')
 	})
@@ -242,5 +253,115 @@ suite('messages', () => {
 			{ evaluate: evaluate as never, messages: { hello: 'Hi {name}' } }
 		)
 		expect(html).toContain('Hi Sam')
+	})
+})
+
+suite('variants and the eight states', () => {
+	const button = {
+		name: 'btn',
+		interface: { props: { label: 'string' } },
+		view: { tag: 'button', text: '$props.label' },
+		styling: {
+			interactive: true,
+			base: { padding: 'var(--space-tight)' },
+			variants: {
+				variant: {
+					primary: { background: 'var(--color-primary)' },
+					danger: { background: 'var(--color-error)' }
+				},
+				size: { sm: { fontSize: 'var(--fs-meta)' }, lg: { fontSize: 'var(--fs-lead)' } }
+			},
+			states: {
+				hover: { opacity: '0.9' },
+				focus: { outline: '2px solid var(--color-accent)' },
+				active: { transform: 'translateY(1px)' },
+				disabled: { opacity: '0.5' }
+			}
+		}
+	}
+
+	test('compiles states onto the base class and variants into modifiers', () => {
+		const css = compileUnitStyling('btn', button.styling as never)
+		expect(Object.keys(css)).toContain('btn')
+		expect(Object.keys(css)).toContain('btn--danger')
+		expect(Object.keys(css)).toContain('btn--size-lg')
+		expect(css.btn[`&${STATE_SELECTORS.hover}`]).toEqual({ opacity: '0.9' })
+	})
+
+	test('focus uses :focus-visible, so a mouse click draws no ring', () => {
+		expect(STATE_SELECTORS.focus).toBe(':focus-visible')
+	})
+
+	test('an interactive unit missing a required state is refused', () => {
+		const bad = { ...button, styling: { ...button.styling, states: { hover: { opacity: '0.9' } } } }
+		expect(() => validateUnit(bad)).toThrow('declares no `focus` state')
+	})
+
+	test('a focus state that draws no ring is refused', () => {
+		const bad = {
+			...button,
+			styling: {
+				...button.styling,
+				states: { ...button.styling.states, focus: { background: 'red' } }
+			}
+		}
+		expect(() => validateUnit(bad)).toThrow('draws no ring')
+	})
+
+	test('loading may not simply reuse disabled — in-flight is not unavailable', () => {
+		const bad = {
+			...button,
+			styling: {
+				...button.styling,
+				states: { ...button.styling.states, loading: { opacity: '0.5' } }
+			}
+		}
+		expect(() => validateUnit(bad)).toThrow('must not read as unavailable')
+	})
+
+	test('a non-interactive unit is not held to the contract', () => {
+		expect(() =>
+			validateUnit({ name: 'card', view: { tag: 'div' }, styling: { base: { padding: '1rem' } } })
+		).not.toThrow()
+	})
+
+	test('placing an unknown variant option is refused', () => {
+		expect(
+			checkPlacement({ unit: 'btn', variants: { variant: 'chartreuse' } }, button as never)[0]
+		).toContain('has no option `chartreuse`')
+	})
+
+	test('a chosen variant reaches the rendered class list', async () => {
+		const html = await renderViewToString(
+			{
+				tag: 'div',
+				children: [
+					{
+						$use: {
+							unit: 'btn',
+							props: { label: 'Delete' },
+							variants: { variant: 'danger', size: 'lg' }
+						}
+					}
+				]
+			} as never,
+			{} as never,
+			{ evaluate: evaluate as never, units: { btn: button as never } }
+		)
+		expect(html).toContain('btn btn--danger btn--size-lg')
+	})
+})
+
+suite('sandbox lifecycle', () => {
+	test('only units declaring logic need a context', () => {
+		const registry = {
+			button: { name: 'button', view: { tag: 'button' } },
+			todo: { name: 'todo', view: { tag: 'ul' }, logic: 'export default {}' }
+		}
+		expect(unitsWithLogic(registry as never).map((u) => u.name)).toEqual(['todo'])
+	})
+
+	test('a registry of purely presentational units needs no sandbox at all', () => {
+		expect(unitsWithLogic({ a: { name: 'a', view: { tag: 'p' } } } as never)).toEqual([])
 	})
 })

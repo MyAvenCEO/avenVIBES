@@ -1,14 +1,16 @@
 /**
  * THE UNIT — one schema for a vibe, a composite and a leaf.
  *
- * The engine could already repeat a node (`$each`) and inject a named view
- * (`$slot`), which is composition of a kind: a slot is looked up by name and
- * rendered with the SAME data as its host. What it could not do is what a
- * design system needs constantly — hand a piece some values and some children
- * and get a different instance of it back. So a button that differed by label
- * was a second view, a card that differed by variant was a second view, and the
- * only way to build a real library was to stop using the engine and write
- * Svelte.
+ * The engine could already repeat a node (`$each`) and inject a named view — a
+ * registry lookup that rendered a fixed view with the SAME data as its host.
+ * That is composition of a kind, and it was not enough: what a design system
+ * needs constantly is to hand a piece some values and some children and get a
+ * different instance of it back. So a button that differed by label was a
+ * second view, a card that differed by variant was a second view, and the only
+ * way to build a real library was to stop using the engine and write Svelte.
+ *
+ * `$use` replaces that mechanism outright rather than sitting beside it. Two
+ * ways to compose is how a codebase ends up with both, forever.
  *
  * A unit fixes that, and it is deliberately ONE type rather than three:
  *
@@ -27,6 +29,8 @@
  * behaviour that runs in a sandbox if it declares any. It cannot see inside
  * another unit and no other unit can see inside it.
  */
+import type { UnitStyling } from './states.js'
+import { checkStateContract, compileUnitStyling, variantClasses } from './states.js'
 import type { RenderData, StyleDef, ViewNode } from './types.js'
 
 /* ── What a unit declares ───────────────────────────────────────────────── */
@@ -77,6 +81,15 @@ export type UnitDef = {
 	view: ViewNode
 	/** Styles scoped to this unit. Merged into the vibe's stylesheet. */
 	style?: StyleDef
+	/**
+	 * How this unit looks, varies and responds.
+	 *
+	 * Preferred over `style` for anything a person operates: it is what carries
+	 * the variant axes and the eight states, and what `checkStateContract`
+	 * measures. `style` remains for a unit that needs a selector the contract
+	 * does not model.
+	 */
+	styling?: UnitStyling
 	/** The unit's own private state. Never visible to another unit. */
 	state?: Record<string, unknown>
 	/**
@@ -99,14 +112,16 @@ export type UnitRegistry = Record<string, UnitDef>
 /**
  * A `$use` node: place a unit, with values and children.
  *
- * The children are the reason slots had to grow up. `$slot` injects a fixed
- * view by name; `slots` here passes DIFFERENT children to each instance, which
- * is what lets one `card` unit be every card on the site.
+ * The children are what the old named-view lookup could not do. It injected one
+ * fixed view; `slots` here passes DIFFERENT children to each instance, which is
+ * what lets a single `card` unit be every card on the site.
  */
 export type UseDef = {
 	unit: string
 	props?: Record<string, unknown>
 	slots?: Record<string, ViewNode | ViewNode[]>
+	/** Chosen options per variant axis, e.g. `{ variant: 'danger', size: 'lg' }`. */
+	variants?: Record<string, string>
 }
 
 /* ── Checking ───────────────────────────────────────────────────────────── */
@@ -122,6 +137,7 @@ export function validateUnit(unit: unknown, at = 'unit'): asserts unit is UnitDe
 	if (u.interface?.slots)
 		for (const [slot, def] of Object.entries(u.interface.slots))
 			if (def && typeof def !== 'object') problems.push(`slot \`${slot}\` is not an object`)
+	if (u.styling && u.name) problems.push(...checkStateContract(u.name, u.styling))
 	if (problems.length) throw new Error(`${at} (${u.name ?? 'unnamed'}): ${problems.join('; ')}`)
 }
 
@@ -160,6 +176,13 @@ export function checkPlacement(use: UseDef, unit: UnitDef): string[] {
 	for (const [name, def] of Object.entries(declared.slots ?? {}))
 		if (def?.required && !(use.slots && name in use.slots))
 			problems.push(`"${unit.name}" requires slot \`${name}\``)
+
+	for (const [axis, option] of Object.entries(use.variants ?? {})) {
+		const options = unit.styling?.variants?.[axis]
+		if (!options) problems.push(`"${unit.name}" has no variant axis \`${axis}\``)
+		else if (!(option in options))
+			problems.push(`"${unit.name}" axis \`${axis}\` has no option \`${option}\``)
+	}
 
 	return problems
 }
@@ -204,8 +227,10 @@ export function expandUse(
 	if (problems.length) throw new Error(`placing "${use.unit}": ${problems.join('; ')}`)
 
 	const layout = layoutClasses(unit.layout)
-	const node: ViewNode = layout
-		? { ...unit.view, class: [layout, unit.view.class].filter(Boolean).join(' ') }
+	const variants = use.variants ? variantClasses(unit.name, use.variants) : ''
+	const extra = [layout, variants].filter(Boolean).join(' ')
+	const node: ViewNode = extra
+		? { ...unit.view, class: [extra, unit.view.class].filter(Boolean).join(' ') }
 		: unit.view
 
 	return {
@@ -219,4 +244,66 @@ export function expandUse(
 			index: data.index
 		}
 	}
+}
+
+/**
+ * Every unit's styling, compiled into the flat `components` map the style
+ * engine consumes.
+ *
+ * Called once per vibe rather than per instance: a unit's CSS does not depend
+ * on where it is placed, which is the whole reason a design system can have a
+ * stylesheet at all.
+ */
+export function registryStyles(registry: UnitRegistry): Record<string, Record<string, unknown>> {
+	const out: Record<string, Record<string, unknown>> = {}
+	for (const unit of Object.values(registry))
+		if (unit.styling) Object.assign(out, compileUnitStyling(unit.name, unit.styling))
+	return out
+}
+
+/* ── Behaviour ──────────────────────────────────────────────────────────── */
+
+/**
+ * A running instance of a unit's logic.
+ *
+ * The engine never runs the code itself. It cannot: the sandbox is QuickJS in a
+ * Tauri plugin on the desktop and a worker in the browser, and this package is
+ * pure — no filesystem, no Node built-ins, nothing platform-specific. So the
+ * host supplies a `SandboxHost` and the engine drives it through this contract.
+ *
+ * That indirection is the point rather than a compromise. A unit's logic must
+ * behave identically wherever it runs, so it is written against a message
+ * interface and never against a runtime.
+ */
+export type UnitInstance = {
+	/** Deliver a message to this instance's inbox and get the next state back. */
+	send(event: { send: string; payload: Record<string, unknown> }): Promise<Record<string, unknown>>
+	/** Tear the instance down. */
+	dispose(): void | Promise<void>
+}
+
+/** What a surface must provide for units that declare `logic`. */
+export type SandboxHost = {
+	/**
+	 * Start one instance of a unit's logic.
+	 *
+	 * `address` is the inbox the instance will be reachable at, passed in so a
+	 * host can route or log by it.
+	 */
+	start(options: {
+		unit: UnitDef
+		address: string
+		initialState: Record<string, unknown>
+	}): Promise<UnitInstance>
+}
+
+/**
+ * Which units in a registry need a sandbox context.
+ *
+ * Only those declaring `logic`. Every unit speaks the actor protocol, but a
+ * button that emits and never receives has nothing to run, and starting a
+ * QuickJS context per button would make the model uniform and the page slow.
+ */
+export function unitsWithLogic(registry: UnitRegistry): UnitDef[] {
+	return Object.values(registry).filter((unit) => Boolean(unit.logic))
 }
