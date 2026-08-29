@@ -173,17 +173,34 @@ export function compileUnitStyling(name: string, styling: UnitStyling): Record<s
 	   silently drops it. */
 	for (const [key, decl] of Object.entries(partStates)) out[key] = { ...out[key], ...decl }
 
-	for (const [axis, options] of Object.entries(styling.variants ?? {}))
+	for (const [axis, options] of Object.entries(styling.variants ?? {})) {
+		if (axis.startsWith('$')) continue
 		for (const [option, decl] of Object.entries(options)) {
+			/* An axis may document itself. `$description` sitting beside the options
+			   is not an option, and emitting it produced `.section--measure-$description`
+			   — a `$` in a selector, which takes the whole stylesheet down. */
+			if (option.startsWith('$')) continue
 			/* `variant` is the default axis and is not repeated in the class name,
 			   so the common case reads `btn--danger` rather than `btn--variant-danger`. */
 			const suffix = axis === 'variant' ? option : `${axis}-${option}`
 			const { $part, ...rest } = decl as Decl & { $part?: string }
-			/* A variant may dress ONE part: `size: sm` on a field shrinks the
-			   control, not the label. Without this the whole unit would have to
-			   carry a variant that only one of its pieces means. */
-			out[$part ? `${name}-${$part}--${suffix}` : `${name}--${suffix}`] = strip(rest)
+			/*
+			 * A variant may dress ONE part: `size: sm` on a field shrinks the
+			 * control, not the label; `tone: accent` on a stat colours the number,
+			 * not the caption.
+			 *
+			 * The class still goes on the UNIT, and the rule reaches the part as a
+			 * descendant. Putting it on the part instead — `.stat-value--tone-accent`
+			 * — compiles fine and is a bad interface: the caller has to know which
+			 * interior piece carries which variant, which is exactly the knowledge a
+			 * unit exists to hold. States are the other way round, because the thing
+			 * that takes focus really is the input.
+			 */
+			out[`${name}--${suffix}`] = $part
+				? ({ [`& .${name}-${$part}`]: strip(rest) } as Decl)
+				: strip(rest)
 		}
+	}
 
 	for (const [animation, frames] of Object.entries(styling.keyframes ?? {})) {
 		const compiled: Decl = {}

@@ -72,3 +72,36 @@ describe('what a unit may declare', () => {
 		expect(out['x-y']).toEqual({ color: 'red' })
 	})
 })
+
+describe('a variant that dresses one part', () => {
+	test('the class goes on the UNIT and the rule reaches the part', () => {
+		const out = compileUnitStyling('stat', {
+			variants: { tone: { accent: { $part: 'value', color: 'gold' } } }
+		} as never)
+		/* Not `.stat-value--tone-accent`: a caller should not have to know which
+		   interior piece carries which variant. */
+		expect(out['stat--tone-accent']).toEqual({ '& .stat-value': { color: 'gold' } })
+		expect(out['stat-value--tone-accent']).toBeUndefined()
+	})
+
+	test('a state that names a part still lands on the part itself', () => {
+		/* The other way round on purpose — the thing that takes focus is the input,
+		   not the field wrapper. */
+		const out = compileUnitStyling('field', {
+			states: { focus: { $part: 'control', outline: '2px solid' } }
+		} as never)
+		expect(out['field-control']).toEqual({ '&:focus-visible': { outline: '2px solid' } })
+	})
+})
+
+describe('documentation never reaches the browser', () => {
+	test('an axis may document itself without becoming an option', () => {
+		const out = compileUnitStyling('section', {
+			variants: { measure: { $description: 'why', prose: { maxInlineSize: '44rem' } } }
+		} as never)
+		/* `.section--measure-$description` is a `$` in a selector, and lightningcss
+		   refuses the entire stylesheet over it. */
+		expect(Object.keys(out).some((k) => k.includes('$'))).toBe(false)
+		expect(out['section--measure-prose']).toEqual({ maxInlineSize: '44rem' })
+	})
+})
