@@ -1193,6 +1193,27 @@ export function createUtilities(brand: Brand) {
 
 		[hidden] { display: none; }
 
+		/*
+		 * THE FOCUS RING, once.
+		 *
+		 * Ten components each wrote their own 2px solid var(--color-accent-ink)
+		 * with a 2px offset — ten places to disagree about the single most
+		 * important affordance a keyboard user has. Worse, the offset put the ring
+		 * OUTSIDE the control, so in a dense row it could sit closer to the
+		 * neighbour than to the thing it marks.
+		 *
+		 * :focus-visible, never :focus: a mouse click should not draw a ring,
+		 * and :focus is the reason so many systems ship one that everybody then
+		 * removes with outline: none.
+		 *
+		 * The fallback is currentColor rather than a literal, so a surface whose
+		 * brand has no focus role still gets a visible ring instead of none.
+		 */
+		:focus-visible {
+			outline: 1px solid var(--color-focus, currentColor);
+			outline-offset: 0;
+		}
+
 	}
 
 	/*
