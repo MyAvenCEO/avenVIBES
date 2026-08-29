@@ -163,3 +163,38 @@ suite('duotone on a stroke icon', () => {
 		).toThrow(/fill/)
 	})
 })
+
+suite('insetting the figure inside its backing', () => {
+	const reg = {
+		close: {
+			viewBox: '0 0 24 24',
+			stroke: true,
+			inset: 0.22,
+			paths: [{ d: 'M12 3a9 9 0 1 0 0 18Z', opacity: 0.2, fill: true }, 'M18 6 6 18']
+		}
+	}
+
+	test('the backing stays put and the figure is scaled about the centre', () => {
+		validateIconRegistry(reg)
+		const svg = renderIcon('close', reg)
+		/* The backing is what the figure is inset FROM, so it must not move. */
+		expect(svg).toMatch(/<path d="M12 3a9 9 0 1 0 0 18Z"[^>]*\/><g transform=/)
+		expect(svg).toContain('scale(0.78)')
+		/* Scaling a stroke thins it; the width is divided back out so the line
+		   weight stays the set's. */
+		expect(svg).toContain('stroke-width="2.564"')
+	})
+
+	test('an icon with no inset emits no group at all', () => {
+		const svg = renderIcon('close', { close: { ...reg.close, inset: undefined } })
+		expect(svg).not.toContain('<g ')
+	})
+
+	test('refuses an inset that is not a number in range', () => {
+		for (const inset of ['0.2', 0.9, -0.1, null]) {
+			expect(() =>
+				validateIcon('bad', { viewBox: '0 0 24 24', paths: ['M0 0h24'], inset })
+			).toThrow(/inset/)
+		}
+	})
+})

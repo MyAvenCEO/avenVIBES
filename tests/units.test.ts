@@ -54,8 +54,11 @@ describe('what a unit may declare', () => {
 		const out = compileUnitStyling('field', {
 			variants: { size: { sm: { $part: 'control', minBlockSize: '2.25rem' } } }
 		} as never)
-		expect(out['field-control--size-sm']).toEqual({ minBlockSize: '2.25rem' })
-		expect(out['field--size-sm']).toBeUndefined()
+		/* The class on the UNIT, the rule reaching the part. Putting it on the
+		   part — `.field-control--size-sm` — compiles and is a bad interface: the
+		   caller would have to know which piece carries which variant. */
+		expect(out['field--size-sm']).toEqual({ '& .field-control': { minBlockSize: '2.25rem' } })
+		expect(out['field-control--size-sm']).toBeUndefined()
 	})
 
 	test('keyframes travel with the unit that animates', () => {
@@ -103,5 +106,27 @@ describe('documentation never reaches the browser', () => {
 		   refuses the entire stylesheet over it. */
 		expect(Object.keys(out).some((k) => k.includes('$'))).toBe(false)
 		expect(out['section--measure-prose']).toEqual({ maxInlineSize: '44rem' })
+	})
+})
+
+describe('every block is stripped, not just some', () => {
+	test('a description on the resting look never reaches the stylesheet', () => {
+		/* `base` was the one block that was not stripped, so a `$description` on it
+		   arrived as `$description: ...` and postcss refused the whole file. */
+		const out = compileUnitStyling('icon', {
+			base: { $description: 'why this is sized in em', display: 'inline-flex' }
+		} as never)
+		expect(out.icon).toEqual({ display: 'inline-flex' })
+	})
+
+	test('nothing anywhere in the output carries a documentation key', () => {
+		const out = compileUnitStyling('x', {
+			base: { $description: 'a', color: 'red' },
+			parts: { y: { $description: 'b', color: 'red' } },
+			variants: { size: { $description: 'c', sm: { $description: 'd', color: 'red' } } },
+			states: { hover: { $description: 'e', color: 'red' } },
+			reducedMotion: { $description: 'f', transition: 'none' }
+		} as never)
+		expect(JSON.stringify(out)).not.toContain('$')
 	})
 })

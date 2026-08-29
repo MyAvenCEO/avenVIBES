@@ -44,6 +44,19 @@ export type IconDef = {
 	title?: string
 	/** Stroke-drawn rather than filled. Most line icon sets are. */
 	stroke?: boolean
+	/**
+	 * How far the FIGURE is inset inside its duotone backing, 0 to 0.4.
+	 *
+	 * A stroked figure and its backing are drawn on the same 24 grid, so the
+	 * strokes run right to the backing's edge — a hamburger fills its slab and an
+	 * X touches its disc, which reads as cramped rather than as a pair. Scaling
+	 * the figure about the centre gives the two shapes room between them without
+	 * redrawing either.
+	 *
+	 * Applied only to paths that are NOT the backing, since the backing is the
+	 * thing being inset from.
+	 */
+	inset?: number
 }
 
 export type IconRegistry = Record<string, IconDef>
@@ -88,6 +101,8 @@ export function validateIcon(name: string, icon: unknown): asserts icon is IconD
 					problems.push(`path ${n}: \`fill\` must be a boolean`)
 			}
 		})
+	if (i.inset !== undefined && (typeof i.inset !== 'number' || !(i.inset >= 0 && i.inset <= 0.4)))
+		problems.push('`inset` must be a number from 0 to 0.4')
 	if (problems.length) throw new Error(`icon "${name}": ${problems.join('; ')}`)
 }
 
@@ -122,16 +137,46 @@ export function renderIcon(
 		`<svg viewBox="${icon.viewBox}" width="${size}" height="${size}" ${paint}`,
 		title ? ` role="img" aria-label="${escapeText(title)}"` : ' aria-hidden="true"',
 		' focusable="false">',
-		icon.paths
-			.map((path) => {
-				if (typeof path === 'string') return `<path d="${path}"/>`
-				const paint = path.fill ? ' fill="currentColor" stroke="none"' : ''
-				return `<path d="${path.d}" opacity="${path.opacity}"${paint}/>`
-			})
-			.join(''),
+		/*
+		 * The figure, inset inside its backing when the icon asks for it. The
+		 * transform is built here from a validated NUMBER and the viewBox's own
+		 * centre, so nothing about it comes from the caller.
+		 */
+		figure(icon),
 		'</svg>'
 	].join('')
 }
+
+/** Every path, with the figure scaled about the viewBox centre if `inset` asks. */
+function figure(icon: IconDef): string {
+	const draw = (path: IconPath) => {
+		if (typeof path === 'string') return `<path d="${path}"/>`
+		const paint = path.fill ? ' fill="currentColor" stroke="none"' : ''
+		return `<path d="${path.d}" opacity="${path.opacity}"${paint}/>`
+	}
+	const inset = typeof icon.inset === 'number' && icon.inset > 0 ? icon.inset : 0
+	if (!inset) return icon.paths.map(draw).join('')
+
+	const isBacking = (p: IconPath) => typeof p !== 'string' && p.fill === true
+	const [, , w, h] = icon.viewBox.split(' ').map(Number)
+	const [cx, cy] = [w / 2, h / 2]
+	const scale = 1 - inset
+	/* Scaling a stroke scales its width too, which thins the figure as it
+	   shrinks. Dividing the stroke back out keeps the line weight the set's. */
+	const stroke = icon.stroke ? ` stroke-width="${round(2 / scale)}"` : ''
+	return [
+		icon.paths.filter(isBacking).map(draw).join(''),
+		`<g transform="translate(${round(cx * inset)} ${round(cy * inset)}) scale(${round(scale)})"${stroke}>`,
+		icon.paths
+			.filter((p) => !isBacking(p))
+			.map(draw)
+			.join(''),
+		'</g>'
+	].join('')
+}
+
+/** Three decimals is plenty for a 24-unit grid, and keeps the markup readable. */
+const round = (n: number) => Math.round(n * 1000) / 1000
 
 /** The one escape this module needs; icon titles are the only free text in it. */
 function escapeText(value: string): string {

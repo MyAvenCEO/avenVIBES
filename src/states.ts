@@ -138,9 +138,13 @@ const STYLING_KEYS = new Set([
 export function compileUnitStyling(name: string, styling: UnitStyling): Record<string, Decl> {
 	const out: Record<string, Decl> = {}
 
+	/* Stripped, like every other block. `base` was the one that was not, so a
+	   `$description` on the resting look reached the stylesheet as a declaration
+	   and postcss refused the file. Third variant of the same bug: something
+	   written for a reader ending up in the output. */
 	const base: Decl = {
-		...(styling.base ?? {}),
-		...(styling.states?.default ?? {})
+		...strip(styling.base ?? {}),
+		...strip(styling.states?.default ?? {})
 	}
 
 	const partStates: Record<string, Decl> = {}
