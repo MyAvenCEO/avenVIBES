@@ -141,6 +141,7 @@ export class VibeEngine {
 
 export {
 	type IconDef,
+	type IconPath,
 	type IconRegistry,
 	renderIcon,
 	validateIcon,

@@ -19,12 +19,21 @@
  * reason this exists rather than an `<img>`.
  */
 
+/**
+ * One path.
+ *
+ * A bare string in the common case. The object form exists for duotone sets,
+ * where the backing shape is the same geometry at a lower opacity — a number,
+ * validated as a number, so there is still no string here a caller controls.
+ */
+export type IconPath = string | { d: string; opacity: number }
+
 /** One icon: the box its geometry is drawn in, and the geometry. */
 export type IconDef = {
 	/** e.g. `0 0 24 24`. Four numbers, nothing else. */
 	viewBox: string
 	/** One or more path `d` strings. Geometry only. */
-	paths: string[]
+	paths: IconPath[]
 	/** What a screen reader should say, if the icon is not decorative. */
 	title?: string
 	/** Stroke-drawn rather than filled. Most line icon sets are. */
@@ -60,9 +69,15 @@ export function validateIcon(name: string, icon: unknown): asserts icon is IconD
 		problems.push('`viewBox` must be four numbers, e.g. "0 0 24 24"')
 	if (!Array.isArray(i.paths) || i.paths.length === 0) problems.push('declares no `paths`')
 	else
-		i.paths.forEach((d, n) => {
+		i.paths.forEach((path, n) => {
+			const d = typeof path === 'string' ? path : path?.d
 			if (typeof d !== 'string' || !PATH_DATA.test(d))
 				problems.push(`path ${n} is not path geometry`)
+			if (typeof path === 'object' && path !== null) {
+				const o = (path as { opacity?: unknown }).opacity
+				if (typeof o !== 'number' || !(o >= 0 && o <= 1))
+					problems.push(`path ${n}: \`opacity\` must be a number from 0 to 1`)
+			}
 		})
 	if (problems.length) throw new Error(`icon "${name}": ${problems.join('; ')}`)
 }
@@ -98,7 +113,13 @@ export function renderIcon(
 		`<svg viewBox="${icon.viewBox}" width="${size}" height="${size}" ${paint}`,
 		title ? ` role="img" aria-label="${escapeText(title)}"` : ' aria-hidden="true"',
 		' focusable="false">',
-		icon.paths.map((d) => `<path d="${d}"/>`).join(''),
+		icon.paths
+			.map((path) =>
+				typeof path === 'string'
+					? `<path d="${path}"/>`
+					: `<path d="${path.d}" opacity="${path.opacity}"/>`
+			)
+			.join(''),
 		'</svg>'
 	].join('')
 }

@@ -41,6 +41,16 @@ export type DtcgGroup = {
 	$description?: string
 } & Record<string, DtcgToken | string | undefined>
 
+/**
+ * An ordered set of colours, walked by index rather than chosen by meaning.
+ *
+ * Not a role and not a group of roles — nothing in it is picked because of what
+ * it means, only because of where it sits. An identicon generator wants the
+ * third colour, not the "warning" one. Keeping these out of `roles` is what
+ * stops `colourNames()` from offering `bg-avatar` as a utility.
+ */
+export type DtcgPalette = { $description?: string; $type?: string; $value: string[] }
+
 /** Every colour group a brand declares. Names match `Brand`'s own fields. */
 export type BrandColorGroups = {
 	tones: DtcgGroup
@@ -48,6 +58,8 @@ export type BrandColorGroups = {
 	surfaces: DtcgGroup
 	ink: DtcgGroup
 	roles: DtcgGroup
+	/** Optional: ordered sets, if the brand has any. */
+	palettes?: { $description?: string } & Record<string, DtcgPalette | string | undefined>
 }
 
 /** Every scale a brand declares. Names match `BrandScales`. */
@@ -118,7 +130,9 @@ export function descriptions(group: DtcgGroup | undefined): Record<string, strin
 
 /* ── Checking ───────────────────────────────────────────────────────────── */
 
-const COLOR_GROUPS: Array<keyof BrandColorGroups> = [
+/* The REQUIRED groups. `palettes` is optional and is not a group of tokens —
+   it holds arrays — so it is checked on its own below rather than flattened. */
+const COLOR_GROUPS: Array<Exclude<keyof BrandColorGroups, 'palettes'>> = [
 	'tones',
 	'functional',
 	'surfaces',
@@ -160,6 +174,19 @@ export function validateBrandDocument(doc: unknown): asserts doc is BrandDocumen
 		if (!g) problems.push(`missing colour group \`color.${group}\``)
 		else if (Object.keys(flatten(g)).length === 0)
 			problems.push(`colour group \`color.${group}\` declares no tokens`)
+	}
+	/*
+	 * A palette is an ordered array, so `flatten` cannot see into it and the
+	 * loop above would pass a palette of nonsense. Check it here: a generator
+	 * that walks a bad palette draws a broken avatar and reports nothing.
+	 */
+	for (const [name, palette] of Object.entries(d.color?.palettes ?? {})) {
+		if (name.startsWith('$')) continue
+		const value = (palette as { $value?: unknown })?.$value
+		if (!Array.isArray(value) || value.length === 0)
+			problems.push(`palette \`color.palettes.${name}\` declares no colours`)
+		else if (!value.every((c) => typeof c === 'string' && /^#[0-9a-f]{3,8}$/i.test(c)))
+			problems.push(`palette \`color.palettes.${name}\` holds a value that is not a hex colour`)
 	}
 	for (const group of SCALE_GROUPS) {
 		const g = d.scale?.[group]

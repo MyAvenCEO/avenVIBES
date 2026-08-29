@@ -98,3 +98,38 @@ suite('in a view', () => {
 		expect(html).toBe('<span data-aven-path="0"></span>')
 	})
 })
+
+suite('duotone', () => {
+	const duo = {
+		social: {
+			viewBox: '0 0 256 256',
+			paths: [{ d: 'M128 24a104 104 0 1 0 0 208Z', opacity: 0.2 }, 'M128 24a104 104 0 1 0 0 208Z']
+		}
+	}
+
+	test('a path may carry an opacity, and it reaches the markup', () => {
+		validateIconRegistry(duo)
+		const svg = renderIcon('social', duo)
+		expect(svg).toContain('opacity="0.2"')
+		/* Still one colour: duotone is two opacities of currentColor, not two
+		   colours, which is what keeps it working in both themes. */
+		expect(svg).not.toMatch(/#[0-9a-f]{3,6}/i)
+	})
+
+	test('refuses an opacity that is not a number', () => {
+		for (const opacity of ['0.2', '0.2" onload="x', null, 2, -1]) {
+			expect(() =>
+				validateIcon('bad', { viewBox: '0 0 24 24', paths: [{ d: 'M0 0h24', opacity }] })
+			).toThrow(/opacity/)
+		}
+	})
+
+	test('still refuses hostile geometry inside the object form', () => {
+		expect(() =>
+			validateIcon('bad', {
+				viewBox: '0 0 24 24',
+				paths: [{ d: '"/><script>alert(1)</script>', opacity: 0.2 }]
+			})
+		).toThrow(/geometry/)
+	})
+})

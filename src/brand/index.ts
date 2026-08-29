@@ -21,6 +21,7 @@ export {
 	brandFromDocuments,
 	type ComponentsDocument,
 	type DtcgGroup,
+	type DtcgPalette,
 	type DtcgToken,
 	describe,
 	descriptions,
