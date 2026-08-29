@@ -89,7 +89,7 @@ export function createGenerator(brand: Brand) {
 	 * block applies and it wins by default. The bug was real and waiting for the
 	 * first surface to theme the whole page.
 	 */
-	function darkBlock(surfaces: TokenMap): string[] {
+	function darkBlock(surfaces: TokenMap, scope?: string): string[] {
 		const rungs = surfaceRungs(surfaces).map((n) => n.replace(/^surface-/, ''))
 		const dark = rungs.filter((r) => `dark-${r}` in surfaces)
 		const roleOverrides = darkRoles(ROLES)
@@ -99,7 +99,13 @@ export function createGenerator(brand: Brand) {
 			'/* The dark theme. Inert until something sets data-theme, and LAST so it',
 			' * wins — it shares a specificity with `:root`, so only order separates',
 			' * them. */',
-			'[data-theme="dark"] {',
+			/* The dark selector is scoped too, or a second brand's dark theme would
+			   repaint the first one. `:where()` keeps it at the same specificity as
+			   the light block so source order still decides, which is what the
+			   comment above depends on. */
+			scope
+				? `:where(${scope})[data-theme="dark"], :where(${scope}) [data-theme="dark"] {`
+				: '[data-theme="dark"] {',
 			...dark.map((r) => `\t--color-surface-${r}: var(--color-dark-${r});`),
 			...(Object.keys(roleOverrides).length ? ['', '\t/* roles that differ in the dark. */'] : []),
 			...Object.entries(roleOverrides).map(([n, v]) => `\t--color-${n}: ${v};`),
@@ -125,7 +131,23 @@ export function createGenerator(brand: Brand) {
 	 * construction — which is what the site's old "copy blocks 1–3 across" comment
 	 * was asking a human to do by hand.
 	 */
-	function themeCss(variant: ThemeVariant): string {
+	/**
+	 * WHERE A VIBE'S TOKENS LIVE.
+	 *
+	 * `:root` by default, which is right for a page that is one brand. It is
+	 * wrong the moment two brands share a page: avenCEO's `--color-primary` is
+	 * marine and avenYMA's is navy, both written to `:root`, and the second
+	 * stylesheet loaded wins for the entire document — every button, every
+	 * border, both brands.
+	 *
+	 * Passing a scope emits the tokens on that selector instead. Custom
+	 * properties inherit, so everything inside the host gets that brand and
+	 * nothing outside it does. This is also the mechanism shadow DOM would need
+	 * anyway — properties inherit THROUGH a shadow boundary, so a shadow root
+	 * still has to be handed its tokens by a host selector. Scoping is therefore
+	 * a prerequisite for encapsulation rather than an alternative to it.
+	 */
+	function themeCss(variant: ThemeVariant, scope?: string): string {
 		const font = variant === 'app' ? FONT_STACK.app : FONT_STACK.web
 		/* One role set for every audience now. The variant picks the font. */
 		/* The `dark-` prefixed roles are emitted in the dark block, not here. */
@@ -143,7 +165,11 @@ export function createGenerator(brand: Brand) {
 		 * The variant now chooses only what it should ever have chosen: which roles
 		 * this surface gets, and which font stack.
 		 */
-		const open = ':root {'
+		/* `:where()` around the scope so a scoped theme has the SAME specificity as
+		   an unscoped one — (0,0,0). Without it a scoped token beats a component's
+		   own override and a brand cannot be locally adjusted, which is the trap
+		   every prefix-based scoping scheme falls into. */
+		const open = scope ? `:where(${scope}) {` : ':root {'
 
 		const parts = [
 			BANNER,
@@ -204,7 +230,7 @@ export function createGenerator(brand: Brand) {
 			].map((line) => `\t${line}`),
 			...Object.entries(SCALE_TOKENS).map(([k, v]) => `\t--${k}: ${v};`),
 			'}',
-			...darkBlock(SURFACES),
+			...darkBlock(SURFACES, scope),
 			''
 		]
 		return parts.join('\n')
@@ -254,7 +280,24 @@ export function createGenerator(brand: Brand) {
 		return `${pad}${selector} {\n${body}\n${pad}}`
 	}
 
-	function componentCss(): string {
+	/**
+	 * The component layer, optionally scoped to the same host as the tokens.
+	 *
+	 * Tokens alone are not enough for two brands on one page: both emit `.card`,
+	 * and one definition wins. Nesting the layer under the vibe host means each
+	 * brand's `.card` applies only inside its own vibe.
+	 *
+	 * `:where()` again, so scoping adds NO specificity. A scoped `.card` and an
+	 * unscoped one weigh the same, which means a surface's own override still
+	 * beats both — the alternative is a system nobody can adjust locally without
+	 * `!important`.
+	 */
+	function componentCss(scope?: string): string {
+		/* `:where()` so the scope costs NOTHING in specificity: `:where(.v) .card`
+		   and `.card` both weigh (0,1,0), so a surface's own override still beats
+		   the system and nobody reaches for `!important`. That is the difference
+		   between scoping and prefixing. */
+		const sel = (selector: string) => (scope ? `:where(${scope}) ${selector}` : selector)
 		return [
 			BANNER,
 			'',
@@ -279,7 +322,7 @@ export function createGenerator(brand: Brand) {
 			'\t * at the call site through a custom property rather than by adding a',
 			'\t * class per value — the native answer to gap-2/gap-4/gap-6. */',
 			Object.entries(LAYOUTS)
-				.map(([name, decls]) => emitRule(`.${name}`, decls as Record<string, unknown>))
+				.map(([name, decls]) => emitRule(sel(`.${name}`), decls as Record<string, unknown>))
 				.join('\n\n'),
 			'}',
 			'',
@@ -290,7 +333,10 @@ export function createGenerator(brand: Brand) {
 				   lightningcss rejects it and the whole stylesheet fails to build.
 				   A unit's keyframes travel with the unit, so they arrive here. */
 				.map(([name, decls]) =>
-					emitRule(name.startsWith('@') ? name : `.${name}`, decls as Record<string, unknown>)
+					/* An at-rule is never scoped. `@keyframes` has no element to sit
+					   inside, and prefixing one produces a selector that is not a
+					   selector — lightningcss rejects it and the stylesheet fails. */
+					emitRule(name.startsWith('@') ? name : sel(`.${name}`), decls as Record<string, unknown>)
 				)
 				.join('\n\n'),
 			'}',
