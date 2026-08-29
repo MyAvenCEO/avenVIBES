@@ -44,20 +44,17 @@ export type DtcgGroup = {
 /** Every colour group a brand declares. Names match `Brand`'s own fields. */
 export type BrandColorGroups = {
 	tones: DtcgGroup
-	creams: DtcgGroup
-	contrastInk: DtcgGroup
+	functional: DtcgGroup
 	surfaces: DtcgGroup
+	ink: DtcgGroup
 	roles: DtcgGroup
-	siteRoles: DtcgGroup
-	appRoles: DtcgGroup
 }
 
 /** Every scale a brand declares. Names match `BrandScales`. */
 export type BrandScaleGroups = {
 	type: DtcgGroup
 	tracking: DtcgGroup
-	ink: DtcgGroup
-	tint: DtcgGroup
+	alpha: { 'on-text': DtcgGroup; 'on-surface': DtcgGroup }
 	elevation: DtcgGroup
 	radius: DtcgGroup
 	space: DtcgGroup
@@ -81,7 +78,7 @@ export type BrandDocument = {
 export type ComponentsDocument = {
 	$description?: string
 	components: Record<string, Decl>
-	primitives: Record<string, Decl>
+	layouts: Record<string, Decl>
 }
 
 /* ── Reading ────────────────────────────────────────────────────────────── */
@@ -123,19 +120,16 @@ export function descriptions(group: DtcgGroup | undefined): Record<string, strin
 
 const COLOR_GROUPS: Array<keyof BrandColorGroups> = [
 	'tones',
-	'creams',
-	'contrastInk',
+	'functional',
 	'surfaces',
-	'roles',
-	'siteRoles',
-	'appRoles'
+	'ink',
+	'roles'
 ]
 
-const SCALE_GROUPS: Array<keyof BrandScaleGroups> = [
+/** The flat scales, which validate the same way. `alpha` is nested and checked separately. */
+const SCALE_GROUPS: Array<Exclude<keyof BrandScaleGroups, 'alpha'>> = [
 	'type',
 	'tracking',
-	'ink',
-	'tint',
 	'elevation',
 	'radius',
 	'space'
@@ -173,6 +167,14 @@ export function validateBrandDocument(doc: unknown): asserts doc is BrandDocumen
 		else if (Object.keys(flatten(g)).length === 0)
 			problems.push(`scale \`scale.${group}\` declares no steps`)
 	}
+	/* Alpha is the one nested scale: two floors, one axis. Both are required —
+	   a brand with no surface-alpha has no hairlines and no washes. */
+	for (const floor of ['on-text', 'on-surface'] as const) {
+		const g = d.scale?.alpha?.[floor]
+		if (!g) problems.push(`missing scale \`scale.alpha.${floor}\``)
+		else if (Object.keys(flatten(g)).length === 0)
+			problems.push(`scale \`scale.alpha.${floor}\` declares no steps`)
+	}
 
 	const fonts = flatten(d.font?.stack)
 	if (!fonts.app) problems.push('missing `font.stack.app`')
@@ -186,14 +188,14 @@ export function validateBrandDocument(doc: unknown): asserts doc is BrandDocumen
 		)
 }
 
-/** Refuse a pieces document that declares neither components nor primitives. */
+/** Refuse a pieces document that declares neither components nor layouts. */
 export function validateComponentsDocument(doc: unknown): asserts doc is ComponentsDocument {
 	const d = doc as Partial<ComponentsDocument> | null
 	if (!d || typeof d !== 'object') throw new Error('components document: not an object')
 	if (!d.components || typeof d.components !== 'object')
 		throw new Error('components document: missing `components`')
-	if (!d.primitives || typeof d.primitives !== 'object')
-		throw new Error('components document: missing `primitives`')
+	if (!d.layouts || typeof d.layouts !== 'object')
+		throw new Error('components document: missing `layouts`')
 }
 
 /* ── Becoming a Brand ───────────────────────────────────────────────────── */
@@ -220,8 +222,10 @@ export function brandFromDocuments(
 	const scales: BrandScales = {
 		type: flatten(brandDoc.scale.type),
 		tracking: flatten(brandDoc.scale.tracking),
-		ink: flatten(brandDoc.scale.ink),
-		tint: flatten(brandDoc.scale.tint),
+		alpha: {
+			'on-text': flatten(brandDoc.scale.alpha['on-text']),
+			'on-surface': flatten(brandDoc.scale.alpha['on-surface'])
+		},
 		elevation: flatten(brandDoc.scale.elevation),
 		radius: flatten(brandDoc.scale.radius),
 		space: flatten(brandDoc.scale.space)
@@ -234,13 +238,10 @@ export function brandFromDocuments(
 		slug: brandDoc.slug,
 
 		tones: flatten(brandDoc.color.tones),
-		creams: flatten(brandDoc.color.creams),
-		contrastInk: flatten(brandDoc.color.contrastInk),
-
+		functional: flatten(brandDoc.color.functional),
 		surfaces: flatten(brandDoc.color.surfaces),
+		ink: flatten(brandDoc.color.ink),
 		roles: flatten(brandDoc.color.roles),
-		siteRoles: flatten(brandDoc.color.siteRoles),
-		appRoles: flatten(brandDoc.color.appRoles),
 
 		fonts: { app: fonts.app, web: fonts.web, ...(fonts.display ? { display: fonts.display } : {}) },
 		fontWeights: flatten(brandDoc.font.weight),
@@ -252,11 +253,11 @@ export function brandFromDocuments(
 			...scales.elevation,
 			...scales.radius,
 			...scales.space,
-			...scales.ink,
-			...scales.tint
+			...scales.alpha['on-text'],
+			...scales.alpha['on-surface']
 		},
 
-		primitives: componentsDoc.primitives,
+		layouts: componentsDoc.layouts,
 		components: componentsDoc.components,
 		elements: brandDoc.elements,
 

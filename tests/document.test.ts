@@ -27,13 +27,12 @@ function completeBrand() {
 		name: 'Test',
 		slug: 'test',
 		color: {
-			tones: group('ink'),
-			creams: group('linen'),
-			contrastInk: group('white'),
+			tones: group('brandblue'),
+			functional: group('errortone'),
+			grounds: { ...group('light-page'), ...group('dark-page') },
 			surfaces: group('page'),
-			roles: group('primary'),
-			siteRoles: group('accent'),
-			appRoles: group('evidence')
+			ink: group('white'),
+			roles: group('primary')
 		},
 		font: {
 			stack: { app: { $value: 'Inter' }, web: { $value: 'Inter' } },
@@ -43,8 +42,10 @@ function completeBrand() {
 		scale: {
 			type: step('fs-body'),
 			tracking: step('tracking-wide'),
-			ink: { 'ink-full': { $value: '0.9' } },
-			tint: { 'tint-soft': { $value: '0.15' } },
+			alpha: {
+				'on-text': { 'ink-full': { $value: '0.9' } },
+				'on-surface': { 'tint-soft': { $value: '0.15' } }
+			},
 			elevation: { 'shadow-raised': { $value: '0 1px 3px rgba(0,0,0,.05)' } },
 			radius: step('radius-chip'),
 			space: step('space-tight')
@@ -56,7 +57,7 @@ function completeBrand() {
 
 const pieces = {
 	components: { card: { padding: '1rem' } },
-	primitives: { stack: { display: 'grid' } }
+	layouts: { stack: { display: 'grid' } }
 }
 
 suite('flatten', () => {
@@ -113,8 +114,8 @@ suite('validateBrandDocument refuses', () => {
 	test('a missing scale, by name', () => {
 		const doc = completeBrand()
 		// @ts-expect-error deliberately removing a required scale
-		doc.scale.ink = undefined
-		expect(() => validateBrandDocument(doc)).toThrow('scale.ink')
+		doc.scale.alpha['on-text'] = undefined
+		expect(() => validateBrandDocument(doc)).toThrow('scale.alpha.on-text')
 	})
 
 	test('a font stack without the two faces every surface needs', () => {
@@ -126,7 +127,7 @@ suite('validateBrandDocument refuses', () => {
 	test('and reports every problem at once, not just the first', () => {
 		const doc = completeBrand()
 		doc.color.tones = {}
-		doc.color.creams = {}
+		doc.color.surfaces = {}
 		let message = ''
 		try {
 			validateBrandDocument(doc)
@@ -134,7 +135,7 @@ suite('validateBrandDocument refuses', () => {
 			message = (e as Error).message
 		}
 		expect(message).toContain('color.tones')
-		expect(message).toContain('color.creams')
+		expect(message).toContain('color.surfaces')
 	})
 
 	test('but accepts a complete one', () => {
@@ -143,8 +144,8 @@ suite('validateBrandDocument refuses', () => {
 })
 
 suite('validateComponentsDocument', () => {
-	test('refuses a document with no primitives', () => {
-		expect(() => validateComponentsDocument({ components: {} })).toThrow('primitives')
+	test('refuses a document with no layouts', () => {
+		expect(() => validateComponentsDocument({ components: {} })).toThrow('layouts')
 	})
 })
 
@@ -152,7 +153,7 @@ suite('brandFromDocuments', () => {
 	test('produces a Brand the generator can consume', () => {
 		const brand = brandFromDocuments(completeBrand(), pieces)
 		expect(brand.name).toBe('Test')
-		expect(brand.tones.ink).toBe('#123456')
+		expect(brand.tones.brandblue).toBe('#123456')
 		expect(brand.fonts.app).toBe('Inter')
 		expect(brand.components.card).toEqual({ padding: '1rem' })
 		expect(brand.elements).toEqual({ h1: 'title' })
@@ -204,7 +205,7 @@ suite('colour arithmetic', () => {
 suite('the theme declares everything its roles reference', () => {
 	/**
 	 * The bug this locks down, which shipped undetected for months: the generator
-	 * emitted tones, creams, surfaces and roles but NOT the contrast inks. It got
+	 * emitted tones, surfaces and roles but NOT the contrast inks. It got
 	 * away with it while brands inlined those as raw hex inside role values — the
 	 * colour reached the page, just not by name. The moment a brand named them and
 	 * pointed its `*-foreground` roles at them, all six resolved to nothing and
@@ -214,7 +215,7 @@ suite('the theme declares everything its roles reference', () => {
 		const { createGenerator } = await import('../src/brand/generate.js')
 		const { brandFromDocuments } = await import('../src/brand/document.js')
 		const doc = completeBrand()
-		doc.color.contrastInk = { 'on-brand': { $type: 'color', $value: '#111111' } }
+		doc.color.ink = { 'on-brand': { $type: 'color', $value: '#111111' } }
 		doc.color.roles = {
 			primary: { $value: '#123456' },
 			'primary-foreground': { $value: 'var(--color-on-brand)' }
@@ -231,7 +232,7 @@ suite('the theme declares everything its roles reference', () => {
 		const { createGenerator } = await import('../src/brand/generate.js')
 		const { brandFromDocuments } = await import('../src/brand/document.js')
 		const doc = completeBrand()
-		doc.color.contrastInk = { 'on-brand': { $type: 'color', $value: '#abcdef' } }
+		doc.color.ink = { 'on-brand': { $type: 'color', $value: '#abcdef' } }
 		const css = createGenerator(brandFromDocuments(doc, pieces)).themeCss('web')
 		expect(css).toContain('--color-on-brand: #abcdef')
 	})

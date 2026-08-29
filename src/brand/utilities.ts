@@ -18,6 +18,7 @@
  */
 
 import type { Brand, Decl } from './types.js'
+import { colourNames } from './types.js'
 
 /**
  * Build this brand's utility layer.
@@ -36,7 +37,15 @@ export interface UtilityResult {
 
 export function createUtilities(brand: Brand) {
 	const TONES = brand.tones
-	const CREAMS = brand.creams
+	/*
+	 * Nothing in this file may name a token a particular brand happens to have.
+	 * The ring offset used to fall back to `--color-background`, which was
+	 * avenCEO's surface name — so the focus ring rendered correctly for exactly
+	 * as long as that brand kept it, and silently lost its offset when the
+	 * surfaces were renamed. `transparent` needs no brand and shows whatever is
+	 * behind, which is what an unset offset should do.
+	 */
+	const GROUNDS = brand.surfaces
 	/* Only the scales a CLASS can name. Ink and tint are set through custom
 	   properties on a component, never through a utility, so binding them here
 	   would be three unused names pretending to be part of the contract. */
@@ -45,9 +54,8 @@ export function createUtilities(brand: Brand) {
 	const RADIUS_SCALE = brand.scales.radius
 	const SURFACES = brand.surfaces
 	const ROLES = brand.roles
-	const APP_ROLES = brand.appRoles
-	const SITE_ROLES = brand.siteRoles
-	const CONTRAST_INK = brand.contrastInk
+	const FUNCTIONAL = brand.functional
+	const INK = brand.ink
 	/** Tailwind's spacing rhythm, which the markup is written in: 1 unit = 0.25rem. */
 	const STEP = 0.25
 
@@ -103,18 +111,21 @@ export function createUtilities(brand: Brand) {
 		black: '#000000'
 	}
 
+	/*
+	 * ONE source for what colour names exist, shared with the generator.
+	 *
+	 * This used to build its own set by listing the brand's groups, which meant
+	 * every new group had to be remembered in two places — and the theme-neutral
+	 * surface rungs, which are DERIVED rather than authored, were in neither. So
+	 * the generator emitted `--color-surface-card` and this rejected every
+	 * `bg-surface-card` in the codebase as unresolvable, failing the build on a
+	 * class the stylesheet defined.
+	 */
+	const KNOWN_COLOURS = colourNames(brand)
+
 	function colourToken(name: string): string | null {
 		if (KEYWORD_COLOURS[name]) return KEYWORD_COLOURS[name]
-		const known = new Set([
-			...Object.keys(TONES),
-			...Object.keys(CREAMS),
-			...Object.keys(SURFACES),
-			...Object.keys(ROLES),
-			...Object.keys(APP_ROLES),
-			...Object.keys(SITE_ROLES),
-			...Object.keys(CONTRAST_INK)
-		])
-		return known.has(name) ? `var(--color-${name})` : null
+		return KNOWN_COLOURS.has(name) ? `var(--color-${name})` : null
 	}
 
 	/**
@@ -645,7 +656,7 @@ export function createUtilities(brand: Brand) {
 				return width
 					? {
 							'box-shadow':
-								'0 0 0 var(--ring-offset-width, 0px) var(--ring-offset-color, var(--color-background)), ' +
+								'0 0 0 var(--ring-offset-width, 0px) var(--ring-offset-color, transparent), ' +
 								`0 0 0 calc(${width} + var(--ring-offset-width, 0px)) var(--ring-color, currentColor)`
 						}
 					: null

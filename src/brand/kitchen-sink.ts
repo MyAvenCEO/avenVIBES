@@ -9,14 +9,13 @@ import type { ViewDef } from '../types.js'
 import type { Brand } from './types.js'
 
 export function createKitchenSink(brand: Brand) {
-	const { components: COMPONENTS, primitives: PRIMITIVES, tones: TONES, creams: CREAMS } = brand
+	const { components: COMPONENTS, layouts: LAYOUTS, tones: TONES, surfaces: GROUNDS } = brand
 	const COMPONENT_NAMES = Object.keys(COMPONENTS)
-	const PRIMITIVE_NAMES = Object.keys(PRIMITIVES)
+	const LAYOUT_NAMES = Object.keys(LAYOUTS)
 	const {
 		type: TYPE_SCALE,
 		tracking: TRACKING_SCALE,
-		ink: INK_SCALE,
-		tint: TINT_SCALE,
+		alpha: ALPHA,
 		elevation: ELEVATION_SCALE,
 		radius: RADIUS_SCALE,
 		space: SPACE_SCALE
@@ -161,7 +160,7 @@ export function createKitchenSink(brand: Brand) {
 	 */
 	function primitiveGallery(): Node[] {
 		const box = (label: string) => text('div', 'ks-box', label)
-		return PRIMITIVE_NAMES.flatMap((name) => [
+		return LAYOUT_NAMES.flatMap((name) => [
 			text('p', 'ks-eyebrow', name),
 			el(`div`, `${name} ks-demo`, [box('one'), box('two'), box('three')])
 		])
@@ -177,8 +176,8 @@ export function createKitchenSink(brand: Brand) {
 					'p',
 					'ks-lede',
 					`Rendered by aven-ui from the configs themselves — ${
-						Object.keys(TONES).length + Object.keys(CREAMS).length
-					} colours, ${Object.keys(TYPE_SCALE).length} type steps, ${PRIMITIVE_NAMES.length} primitives, ${
+						Object.keys(TONES).length + Object.keys(GROUNDS).length
+					} colours, ${Object.keys(TYPE_SCALE).length} type steps, ${LAYOUT_NAMES.length} primitives, ${
 						COMPONENT_NAMES.length
 					} components. Nothing here is written by hand; if it renders wrong, the system is wrong.`
 				)
@@ -195,7 +194,7 @@ export function createKitchenSink(brand: Brand) {
 				el(
 					'div',
 					'ks-swatches',
-					Object.entries(CREAMS).map(([n, v]) => swatch(n, v))
+					Object.entries(GROUNDS).map(([n, v]) => swatch(n, v))
 				)
 			]),
 
@@ -221,7 +220,7 @@ export function createKitchenSink(brand: Brand) {
 				el(
 					'div',
 					'stack',
-					Object.entries(INK_SCALE).map(([n, v]) =>
+					Object.entries(ALPHA['on-text']).map(([n, v]) =>
 						specimen(`ks-ink ks-${n}`, n, v, 'Readable at this weight')
 					)
 				)
@@ -230,7 +229,7 @@ export function createKitchenSink(brand: Brand) {
 				el(
 					'div',
 					'stack',
-					Object.entries(TINT_SCALE).map(([n, v]) =>
+					Object.entries(ALPHA['on-surface']).map(([n, v]) =>
 						el('div', 'ks-row', [
 							el('span', `ks-tint ks-${n}`, []),
 							text('span', 'ks-mono', `${n} · ${v}`)
@@ -266,7 +265,7 @@ export function createKitchenSink(brand: Brand) {
 			]),
 
 			section(
-				`Primitives · ${PRIMITIVE_NAMES.length}`,
+				`Primitives · ${LAYOUT_NAMES.length}`,
 				'The shapes almost every layout is made of. Each tuned at the call site by a custom property rather than by a class per value.',
 				primitiveGallery()
 			),
@@ -290,7 +289,7 @@ export function createKitchenSink(brand: Brand) {
 		const helpers: string[] = []
 		for (const name of Object.keys(TONES))
 			helpers.push(`.ks-chip-${name} { background: var(--color-${name}); }`)
-		for (const name of Object.keys(CREAMS))
+		for (const name of Object.keys(GROUNDS))
 			helpers.push(
 				`.ks-chip-${name} { background: var(--color-${name}); border: 1px solid var(--color-border); }`
 			)
@@ -298,11 +297,11 @@ export function createKitchenSink(brand: Brand) {
 			helpers.push(`.ks-${name} { font-size: var(--${name}); }`)
 		for (const name of Object.keys(TRACKING_SCALE))
 			helpers.push(`.ks-${name} { letter-spacing: var(--${name}); text-transform: uppercase; }`)
-		for (const name of Object.keys(INK_SCALE))
+		for (const name of Object.keys(ALPHA['on-text']))
 			helpers.push(
 				`.ks-${name} { color: color-mix(in srgb, var(--color-foreground) calc(var(--${name}) * 100%), transparent); }`
 			)
-		for (const name of Object.keys(TINT_SCALE))
+		for (const name of Object.keys(ALPHA['on-surface']))
 			helpers.push(
 				`.ks-${name} { background: color-mix(in srgb, var(--color-foreground) calc(var(--${name}) * 100%), transparent); }`
 			)

@@ -30,10 +30,10 @@ export type TokenMap = Record<string, string>
 /**
  * Which audience a stylesheet is for.
  *
- * Not a rendering mode — the output shape is identical. It selects which extra
- * ROLES the surface gets and which font stack, because a marketing site and an
- * application genuinely mean different things by the same word: `accent` is a
- * highlight on the site and `info` is a notice in the app.
+ * Now selects only the FONT STACK. It used to also pick which roles a surface
+ * got, which is why there were three role groups; measuring them showed the
+ * site's roles were almost entirely aliases of the shared ones, so the roles
+ * merged and the audience kept the one job it was actually good at.
  */
 export type Audience = 'app' | 'web' | 'plain'
 
@@ -42,10 +42,16 @@ export interface BrandScales {
 	type: TokenMap
 	/** Letter-spacing, keyed `tracking-*`. */
 	tracking: TokenMap
-	/** Text emphasis levels, keyed `ink-*`. */
-	ink: TokenMap
-	/** Background wash levels, keyed `tint-*`. */
-	tint: TokenMap
+	/**
+	 * ALPHA — one axis, two floors.
+	 *
+	 * `on-text` and `on-surface` were `ink` and `tint`, which sat beside the
+	 * type ramp and read as though emphasis were typographic. It is not: both
+	 * are opacity, and the only thing separating them is what the opacity is
+	 * applied to. Text has a contrast floor and a surface does not, which is
+	 * the whole distinction and exactly what the old names hid.
+	 */
+	alpha: { 'on-text': TokenMap; 'on-surface': TokenMap }
 	/** Shadows, keyed `shadow-*`. */
 	elevation: TokenMap
 	/** Corner radii, keyed `radius-*`. */
@@ -64,21 +70,43 @@ export interface Brand {
 
 	/** The brand's own colours, each spelled exactly once. */
 	tones: TokenMap
-	/** The light ground family, lightest to warmest. */
-	creams: TokenMap
-	/** Text colours guaranteed to read on a filled tone. */
-	contrastInk: TokenMap
+	/**
+	 * Colours that carry a MEANING and are never identity.
+	 *
+	 * Split out of `tones` because a palette that lists the failure colour
+	 * beside the brand blue invites someone to decorate with it. Nothing here
+	 * belongs in a logo.
+	 */
+	functional: TokenMap
+	/** Text guaranteed to read on a filled colour, as concrete values. */
+	ink: TokenMap
 
 	/* ── What the paint MEANS ─────────────────────────────────────────────── */
 
-	/** Which rung each part of a page stands on. */
+	/**
+	 * EVERY SURFACE, both themes, keyed `<theme>-<rung>`.
+	 *
+	 * `light-page`, `dark-card`. ONE authored group: the creams were only ever
+	 * the light rungs, so listing them separately was the same thing said twice.
+	 *
+	 * The theme-neutral names a component actually uses — `surface-page`,
+	 * `surface-card` — are DERIVED from these by the generator, not authored,
+	 * because they are mechanical: strip the theme prefix, emit an alias, and
+	 * re-point it under `[data-theme]`. That derivation is what keeps a
+	 * component from ever naming a theme, which is the thing that would make it
+	 * un-themeable.
+	 */
 	surfaces: TokenMap
-	/** Roles every surface shares. */
+	/**
+	 * What the paint MEANS. ONE group.
+	 *
+	 * There were three — shared, site and app — and the split did not survive
+	 * measurement: six of the site's seven tokens aliased a shared role under a
+	 * different name. That is a synonym list, not a vocabulary. A surface that
+	 * does not use a role simply does not use it, which costs a few unused
+	 * custom properties and saves a whole axis of naming.
+	 */
 	roles: TokenMap
-	/** Roles only a marketing site has. */
-	siteRoles: TokenMap
-	/** Roles only an application has. */
-	appRoles: TokenMap
 
 	/* ── Type and geometry ────────────────────────────────────────────────── */
 
@@ -102,8 +130,14 @@ export interface Brand {
 
 	/* ── The pieces ───────────────────────────────────────────────────────── */
 
-	/** Layout shapes almost every page is made of: stack, cluster, center… */
-	primitives: Record<string, Decl>
+	/**
+	 * The layout shapes almost every page is made of: stack, cluster, center…
+	 *
+	 * Named `layouts` rather than `primitives` because a unit is now the
+	 * smallest PIECE, which is what "primitive" means everywhere else in design
+	 * systems. Two meanings for one word inside one system is a naming bug.
+	 */
+	layouts: Record<string, Decl>
 	/** Named components: the button, the panel, the eyebrow. */
 	components: Record<string, Decl>
 
@@ -121,22 +155,46 @@ export interface Brand {
 	appIconPlate: string
 }
 
+/**
+ * `light-page` -> `surface-page`. The theme-neutral rung names.
+ *
+ * Derived in one place and used in two: the generator emits them as the theme
+ * seam, and the utility scanner has to know them or every `bg-surface-card` in
+ * the codebase resolves to nothing and fails the build. They were emitted
+ * before they were nameable, which is exactly that failure.
+ */
+export function surfaceRungs(surfaces: TokenMap): string[] {
+	return [
+		...new Set(
+			Object.keys(surfaces)
+				.filter((n) => /^(light|dark)-/.test(n))
+				.map((n) => `surface-${n.replace(/^(light|dark)-/, '')}`)
+		)
+	]
+}
+
 /** Every colour name a utility may reference in this brand. */
 export function colourNames(brand: Brand): Set<string> {
+	/*
+	 * Tolerant of a partial brand on purpose. `validateBrandDocument` is what
+	 * refuses an incomplete one, and it runs at load; this runs on every class
+	 * the scanner sees, so a missing group should mean fewer known names rather
+	 * than a crash that reports itself as an unresolvable utility.
+	 */
+	const keys = (m: TokenMap | undefined) => Object.keys(m ?? {})
 	return new Set([
-		...Object.keys(brand.tones),
-		...Object.keys(brand.creams),
-		...Object.keys(brand.surfaces),
-		...Object.keys(brand.roles),
-		...Object.keys(brand.appRoles),
-		...Object.keys(brand.siteRoles),
-		...Object.keys(brand.contrastInk)
+		...surfaceRungs(brand.surfaces ?? {}),
+		...keys(brand.tones),
+		...keys(brand.functional),
+		...keys(brand.surfaces),
+		...keys(brand.roles),
+		...keys(brand.ink)
 	])
 }
 
 /** The class names this brand defines itself, which are never utilities. */
 export function pieceNames(brand: Brand): string[] {
-	return [...Object.keys(brand.primitives), ...Object.keys(brand.components)]
+	return [...Object.keys(brand.layouts), ...Object.keys(brand.components)]
 }
 
 /**
@@ -155,11 +213,10 @@ export function assertNoShadowedTokens(brand: Brand): void {
 	const clashes: string[] = []
 	const maps: Array<[string, TokenMap]> = [
 		['tones', brand.tones],
-		['creams', brand.creams],
+		['functional', brand.functional],
 		['surfaces', brand.surfaces],
-		['roles', brand.roles],
-		['appRoles', brand.appRoles],
-		['siteRoles', brand.siteRoles]
+		['ink', brand.ink],
+		['roles', brand.roles]
 	]
 	for (const [where, map] of maps)
 		for (const name of Object.keys(map)) {
