@@ -130,3 +130,4 @@ describe('every block is stripped, not just some', () => {
 		expect(JSON.stringify(out)).not.toContain('$')
 	})
 })
+

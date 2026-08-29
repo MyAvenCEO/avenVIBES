@@ -70,6 +70,7 @@ export type BrandScaleGroups = {
 	elevation: DtcgGroup
 	radius: DtcgGroup
 	space: DtcgGroup
+	motion?: DtcgGroup
 }
 
 /** A brand, as it is written down. */
@@ -255,7 +256,12 @@ export function brandFromDocuments(
 		},
 		elevation: flatten(brandDoc.scale.elevation),
 		radius: flatten(brandDoc.scale.radius),
-		space: flatten(brandDoc.scale.space)
+		space: flatten(brandDoc.scale.space),
+		/* Optional: a brand may have no motion, and one that does not should not
+		   be forced to declare an empty group. A brand that DOES gets its
+		   durations and easings as real custom properties instead of every
+		   `transition` in its component library silently resolving to nothing. */
+		...(brandDoc.scale.motion ? { motion: flatten(brandDoc.scale.motion) } : {})
 	}
 
 	const fonts = flatten(brandDoc.font.stack)
@@ -280,6 +286,7 @@ export function brandFromDocuments(
 			...scales.elevation,
 			...scales.radius,
 			...scales.space,
+			...(scales.motion ?? {}),
 			...scales.alpha['on-text'],
 			...scales.alpha['on-surface']
 		},

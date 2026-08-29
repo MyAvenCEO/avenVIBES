@@ -58,6 +58,23 @@ export interface BrandScales {
 	radius: TokenMap
 	/** Spacing steps, keyed `space-*`. */
 	space: TokenMap
+	/**
+	 * MOTION — durations keyed `duration-*`, easings keyed `ease-*`.
+	 *
+	 * Optional, because a brand may genuinely have no motion. It is listed here
+	 * at all because it was NOT, and the omission was invisible: a unit that
+	 * wrote `transition: background var(--duration-quick) var(--ease-out)` got a
+	 * declaration with two empty strings in it, which is invalid and therefore
+	 * dropped in full. Every transition in a whole component library was dead,
+	 * every gate was green, and the computed `transition-duration` on a button
+	 * was `0s`.
+	 *
+	 * An undefined custom property is not an error. It is an empty string, and
+	 * the declaration containing it is discarded silently — which is why a
+	 * missing scale has to be caught by the scale being DECLARED, and by
+	 * `validate_theme_refs` on the way out.
+	 */
+	motion?: TokenMap
 }
 
 export interface Brand {
