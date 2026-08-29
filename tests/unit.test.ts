@@ -365,3 +365,30 @@ suite('sandbox lifecycle', () => {
 		expect(unitsWithLogic({ a: { name: 'a', view: { tag: 'p' } } } as never)).toEqual([])
 	})
 })
+
+suite('a styled unit always wears its own class', () => {
+	const styled = {
+		name: 'pill',
+		view: { tag: 'span', text: 'x' },
+		styling: { base: { borderRadius: '999px' } }
+	}
+
+	test('even when placed with no variants at all', async () => {
+		const html = await renderViewToString(
+			{ tag: 'div', children: [{ $use: { unit: 'pill' } }] } as never,
+			{} as never,
+			{ evaluate: evaluate as never, units: { pill: styled as never } }
+		)
+		expect(html).toContain('class="pill"')
+	})
+
+	test('a unit with no styling stays classless, as written', async () => {
+		const bare = { name: 'bare', view: { tag: 'span', text: 'x' } }
+		const html = await renderViewToString(
+			{ tag: 'div', children: [{ $use: { unit: 'bare' } }] } as never,
+			{} as never,
+			{ evaluate: evaluate as never, units: { bare: bare as never } }
+		)
+		expect(html).not.toContain('class=')
+	})
+})
