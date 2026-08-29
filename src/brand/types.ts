@@ -59,22 +59,15 @@ export interface BrandScales {
 	/** Spacing steps, keyed `space-*`. */
 	space: TokenMap
 	/**
-	 * MOTION — durations keyed `duration-*`, easings keyed `ease-*`.
+	 * Any other axis the brand declares — `motion`, `z`, whatever comes next.
 	 *
-	 * Optional, because a brand may genuinely have no motion. It is listed here
-	 * at all because it was NOT, and the omission was invisible: a unit that
-	 * wrote `transition: background var(--duration-quick) var(--ease-out)` got a
-	 * declaration with two empty strings in it, which is invalid and therefore
-	 * dropped in full. Every transition in a whole component library was dead,
-	 * every gate was green, and the computed `transition-duration` on a button
-	 * was `0s`.
-	 *
-	 * An undefined custom property is not an error. It is an empty string, and
-	 * the declaration containing it is discarded silently — which is why a
-	 * missing scale has to be caught by the scale being DECLARED, and by
-	 * `validate_theme_refs` on the way out.
+	 * Open rather than enumerated, because the enumeration is what caused the
+	 * bug: motion was missing from the allowlist, so every `transition` in a
+	 * component library resolved to nothing and no gate could see it. Naming
+	 * `motion` fixed one case and left `z` — referenced twice, defined nowhere,
+	 * so a fixed drawer had no stacking order.
 	 */
-	motion?: TokenMap
+	[axis: string]: TokenMap | { 'on-text': TokenMap; 'on-surface': TokenMap }
 }
 
 export interface Brand {
