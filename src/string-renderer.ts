@@ -1,6 +1,6 @@
 import { type MessageCatalog, translate } from './messages.js'
 import { SAFE_TAGS, sanitizeAttributeWhitelist } from './security.js'
-import type { RenderData, SlotRegistry, ViewDef, ViewNode } from './types.js'
+import type { RenderData, ViewDef, ViewNode } from './types.js'
 import { expandUse, type UnitRegistry } from './unit.js'
 import { renderMarkdown } from './view-engine.js'
 
@@ -19,7 +19,7 @@ import { renderMarkdown } from './view-engine.js'
  *
  * Two renderers over one definition is a real cost, and they can drift. What
  * keeps them honest is that the SHAPE of the walk is the same in both — same
- * tag safety, same attribute sanitising, same `$each`/`$slot`/`children`
+ * tag safety, same attribute sanitising, same `$each`/`$use`/`children`
  * ordering — plus a conformance test that runs a fixture through both and
  * compares the text they produce.
  *
@@ -68,8 +68,6 @@ export type Evaluate = (expression: unknown, data: RenderData) => Promise<unknow
 export interface StringRenderOptions {
 	/** Resolves `{state.x}` style expressions — supply the engine's evaluator. */
 	evaluate: Evaluate
-	/** Named views a `$slot` can pull in. */
-	slots?: SlotRegistry
 	/** Units a `$use` may place. Must be the same registry the DOM renderer uses. */
 	units?: UnitRegistry
 	/** The locale's copy, for `$t`. */
@@ -170,8 +168,6 @@ async function renderNode(
 		} else {
 			inner = ''
 		}
-	} else if (node.$slot) {
-		inner = await renderSlot(node, data, options)
 	} else if (node.children) {
 		const parts: string[] = []
 		for (let i = 0; i < node.children.length; i++) {
@@ -216,20 +212,6 @@ async function renderChildren(
 	for (let i = 0; i < nodes.length; i++)
 		parts.push(await renderNode(nodes[i], data, options, `${path}.${name}.${i}`))
 	return parts.join('')
-}
-
-async function renderSlot(
-	node: ViewNode,
-	data: RenderData,
-	options: StringRenderOptions
-): Promise<string> {
-	const key = node.$slot
-	if (!key?.startsWith('$')) return ''
-	const registry = options.slots ?? {}
-	const view = registry[key.slice(1)] ?? registry[key]
-	if (!view) return ''
-	const slotNode = (view as ViewDef).content ?? view
-	return renderNode(slotNode as ViewNode, data, options)
 }
 
 /**
