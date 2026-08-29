@@ -133,3 +133,33 @@ suite('duotone', () => {
 		).toThrow(/geometry/)
 	})
 })
+
+suite('duotone on a stroke icon', () => {
+	const reg = {
+		check: {
+			viewBox: '0 0 24 24',
+			stroke: true,
+			paths: [{ d: 'M12 3a9 9 0 1 0 0 18Z', opacity: 0.2, fill: true }, 'M20 6 9 17l-5-5']
+		}
+	}
+
+	test('the backing fills while the figure strokes', () => {
+		validateIconRegistry(reg)
+		const svg = renderIcon('check', reg)
+		/* The icon paints `fill="none"` for the stroked figure, so a backing at
+		   0.2 would be invisible without its own fill. */
+		expect(svg).toContain('fill="none"')
+		expect(svg).toContain('opacity="0.2" fill="currentColor" stroke="none"')
+		/* Still one colour. Two opacities of currentColor theme; two colours do not. */
+		expect(svg).not.toMatch(/#[0-9a-f]{3,6}/i)
+	})
+
+	test('refuses a fill that is not a boolean', () => {
+		expect(() =>
+			validateIcon('bad', {
+				viewBox: '0 0 24 24',
+				paths: [{ d: 'M0 0h24', opacity: 0.2, fill: '" onload="x' }]
+			})
+		).toThrow(/fill/)
+	})
+})

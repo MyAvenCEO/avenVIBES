@@ -23,10 +23,16 @@
  * One path.
  *
  * A bare string in the common case. The object form exists for duotone sets,
- * where the backing shape is the same geometry at a lower opacity — a number,
+ * where a backing shape sits under the figure at a lower opacity — a number,
  * validated as a number, so there is still no string here a caller controls.
+ *
+ * `fill` overrides the icon's paint mode for this path alone, which is what a
+ * duotone STROKE icon needs: the figure is drawn with `fill="none"`, and its
+ * backing has to be a solid shape or there is nothing to see at 0.2. Both
+ * paths are still `currentColor` — duotone here is two opacities of one
+ * colour, never two colours, because two colours cannot be themed.
  */
-export type IconPath = string | { d: string; opacity: number }
+export type IconPath = string | { d: string; opacity: number; fill?: boolean }
 
 /** One icon: the box its geometry is drawn in, and the geometry. */
 export type IconDef = {
@@ -77,6 +83,9 @@ export function validateIcon(name: string, icon: unknown): asserts icon is IconD
 				const o = (path as { opacity?: unknown }).opacity
 				if (typeof o !== 'number' || !(o >= 0 && o <= 1))
 					problems.push(`path ${n}: \`opacity\` must be a number from 0 to 1`)
+				const f = (path as { fill?: unknown }).fill
+				if (f !== undefined && typeof f !== 'boolean')
+					problems.push(`path ${n}: \`fill\` must be a boolean`)
 			}
 		})
 	if (problems.length) throw new Error(`icon "${name}": ${problems.join('; ')}`)
@@ -114,11 +123,11 @@ export function renderIcon(
 		title ? ` role="img" aria-label="${escapeText(title)}"` : ' aria-hidden="true"',
 		' focusable="false">',
 		icon.paths
-			.map((path) =>
-				typeof path === 'string'
-					? `<path d="${path}"/>`
-					: `<path d="${path.d}" opacity="${path.opacity}"/>`
-			)
+			.map((path) => {
+				if (typeof path === 'string') return `<path d="${path}"/>`
+				const paint = path.fill ? ' fill="currentColor" stroke="none"' : ''
+				return `<path d="${path.d}" opacity="${path.opacity}"${paint}/>`
+			})
 			.join(''),
 		'</svg>'
 	].join('')
