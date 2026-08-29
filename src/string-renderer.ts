@@ -1,5 +1,7 @@
+import { type MessageCatalog, translate } from './messages.js'
 import { SAFE_TAGS, sanitizeAttributeWhitelist } from './security.js'
 import type { RenderData, SlotRegistry, ViewDef, ViewNode } from './types.js'
+import { expandUse, type UnitRegistry } from './unit.js'
 import { renderMarkdown } from './view-engine.js'
 
 /**
@@ -68,6 +70,31 @@ export interface StringRenderOptions {
 	evaluate: Evaluate
 	/** Named views a `$slot` can pull in. */
 	slots?: SlotRegistry
+	/** Units a `$use` may place. Must be the same registry the DOM renderer uses. */
+	units?: UnitRegistry
+	/** The locale's copy, for `$t`. */
+	messages?: MessageCatalog
+}
+
+/**
+ * A text value, which may be a message reference.
+ *
+ * Kept identical to the DOM renderer's `resolveText`: a view that renders one
+ * way at build time and another at runtime is worse than one that fails.
+ */
+async function resolveText(
+	text: unknown,
+	data: RenderData,
+	options: StringRenderOptions
+): Promise<unknown> {
+	if (text && typeof text === 'object' && '$t' in (text as object)) {
+		const ref = text as { $t: string; values?: Record<string, unknown> }
+		const values: Record<string, unknown> = {}
+		for (const [k, v] of Object.entries(ref.values ?? {}))
+			values[k] = await options.evaluate(v, data)
+		return translate(ref.$t, options.messages ?? {}, values)
+	}
+	return options.evaluate(text, data)
 }
 
 /** Render one node and everything under it. */
@@ -113,7 +140,7 @@ async function renderNode(
 	let inner = ''
 
 	if (node.text !== undefined) {
-		const resolved = await options.evaluate(node.text, data)
+		const resolved = await resolveText(node.text, data, options)
 		const asMarkdown = node.format === 'md' || node.format === 'markdown'
 		inner =
 			asMarkdown && (typeof resolved === 'string' || resolved == null)
@@ -121,7 +148,11 @@ async function renderNode(
 				: escapeText(String(resolved ?? ''))
 	}
 
-	if (node.$each) {
+	if (node.$use) {
+		inner = await renderUse(node, data, options, path)
+	} else if (node.$children) {
+		inner = await renderChildren(node.$children, data, options, path)
+	} else if (node.$each) {
 		const items = await options.evaluate(node.$each.items, data)
 		if (Array.isArray(items)) {
 			const parts: string[] = []
@@ -150,6 +181,41 @@ async function renderNode(
 	}
 
 	return `${open}${inner}</${tag}>`
+}
+
+/**
+ * Place a unit. Same two-scope rule as the DOM renderer: props resolve in the
+ * caller's scope, the unit renders in its own.
+ */
+async function renderUse(
+	node: ViewNode,
+	data: RenderData,
+	options: StringRenderOptions,
+	path: string
+): Promise<string> {
+	const use = node.$use
+	if (!use) return ''
+	const resolved: Record<string, unknown> = {}
+	for (const [name, expr] of Object.entries(use.props ?? {}))
+		resolved[name] = await options.evaluate(expr, data)
+	const expanded = expandUse(use, options.units ?? {}, data, resolved)
+	return renderNode(expanded.node, expanded.data, options, `${path}~${use.unit}`)
+}
+
+/** Render the children a parent passed into a named slot. */
+async function renderChildren(
+	name: string,
+	data: RenderData,
+	options: StringRenderOptions,
+	path: string
+): Promise<string> {
+	const passed = data.slots?.[name]
+	if (!passed) return ''
+	const nodes = Array.isArray(passed) ? passed : [passed]
+	const parts: string[] = []
+	for (let i = 0; i < nodes.length; i++)
+		parts.push(await renderNode(nodes[i], data, options, `${path}.${name}.${i}`))
+	return parts.join('')
 }
 
 async function renderSlot(

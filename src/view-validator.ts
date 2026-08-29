@@ -111,14 +111,24 @@ export class Evaluator {
 
 	async evaluate(
 		expression: unknown,
-		data: { state: Record<string, unknown>; item?: unknown; index?: number }
+		data: {
+			state: Record<string, unknown>
+			props?: Record<string, unknown>
+			item?: unknown
+			index?: number
+		}
 	): Promise<unknown> {
 		return this.evaluateInner(expression, data, 0)
 	}
 
 	private async evaluateInner(
 		expression: unknown,
-		data: { state: Record<string, unknown>; item?: unknown; index?: number },
+		data: {
+			state: Record<string, unknown>
+			props?: Record<string, unknown>
+			item?: unknown
+			index?: number
+		},
 		depth: number
 	): Promise<unknown> {
 		if (depth > this.maxDepth) {
@@ -127,6 +137,12 @@ export class Evaluator {
 		if (expression === null || expression === undefined) return expression
 		if (typeof expression !== 'string') return expression
 
+		/* A unit's own props are a separate scope from its state, so that a unit
+		   cannot accidentally read a parent's value that happens to share a
+		   name — the whole point of the black box. */
+		if (expression.startsWith('$props.')) {
+			return resolvePath(data.props ?? {}, expression.slice('$props.'.length))
+		}
 		if (expression.startsWith('$$')) {
 			const key = expression.slice(2)
 			if (data.item && typeof data.item === 'object' && data.item !== null) {

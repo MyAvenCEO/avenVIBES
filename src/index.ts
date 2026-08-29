@@ -10,6 +10,7 @@
  * Nothing here knows about any particular brand or product. Tokens are injected
  * through the bundle's style, so the framework is the same wherever it runs.
  */
+import { MessageRouter } from './messages.js'
 import { StateStore } from './state-store.js'
 import type { UiBundle, UiEvent, VibeEngineOptions } from './types.js'
 import { ViewEngine } from './view-engine.js'
@@ -19,6 +20,7 @@ export class VibeEngine {
 	private readonly onEvent?: (event: UiEvent) => void
 	private readonly containerName: string
 	private readonly viewEngine = new ViewEngine()
+	private readonly router = new MessageRouter()
 	private readonly stateStore = new StateStore()
 	private shadowRoot: ShadowRoot | null = null
 	private bundle: UiBundle | null = null
@@ -37,7 +39,10 @@ export class VibeEngine {
 		this.viewEngine.configure({
 			onEvent: this.onEvent,
 			slots: bundle.slots,
-			containerName: this.containerName
+			containerName: this.containerName,
+			units: bundle.units,
+			messages: bundle.messages,
+			router: this.router
 		})
 		this.shadowRoot = await this.viewEngine.mount(
 			this.container,
@@ -66,7 +71,19 @@ export class VibeEngine {
 		return this.bundle
 	}
 
+	/**
+	 * The router this vibe's messages travel through.
+	 *
+	 * Exposed so the surface hosting the vibe can register inboxes of its own —
+	 * an app-level actor a unit addresses by name, rather than everything having
+	 * to funnel through `onEvent`.
+	 */
+	messageRouter(): MessageRouter {
+		return this.router
+	}
+
 	async unmount(): Promise<void> {
+		this.router.clearOwned()
 		this.unsubState?.()
 		this.unsubState = null
 		if (this.shadowRoot) {
@@ -87,6 +104,17 @@ export class VibeEngine {
 	}
 }
 
+export {
+	type Address,
+	HOST,
+	type Inbox,
+	type MessageCatalog,
+	MessageRouter,
+	PARENT,
+	resolveAddress,
+	SELF,
+	translate
+} from './messages.js'
 export { StateStore } from './state-store.js'
 export { renderViewToString, type StringRenderOptions } from './string-renderer.js'
 export { validateStyleDef } from './style-validator.js'
@@ -100,5 +128,17 @@ export type {
 	ViewDef,
 	ViewNode
 } from './types.js'
+export {
+	checkPlacement,
+	expandUse,
+	type LayoutDef,
+	layoutClasses,
+	type UnitDef,
+	type UnitInterface,
+	type UnitRegistry,
+	type UseDef,
+	validateRegistry,
+	validateUnit
+} from './unit.js'
 export { validateViewDef } from './view-validator.js'
 export { VibeEngine as default }
