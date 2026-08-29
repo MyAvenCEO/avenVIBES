@@ -239,14 +239,6 @@ export function validateComponentsDocument(doc: unknown): asserts doc is Compone
  * assembled brand, so a name declared twice fails here rather than silently
  * losing to whichever map is emitted last.
  */
-export function brandFromDocuments(
-	brandDoc: unknown,
-	componentsDoc: unknown,
-	overrides: Partial<Brand> = {}
-): Brand {
-	validateBrandDocument(brandDoc)
-	validateComponentsDocument(componentsDoc)
-
 /**
  * The scale groups this file reads by NAME, because their shape is known:
  * `alpha` is nested two deep, and the rest are pulled out individually
@@ -254,6 +246,14 @@ export function brandFromDocuments(
  * as-is, so a new axis needs no change here to exist.
  */
 const KNOWN_SCALES = new Set(['type', 'tracking', 'alpha', 'elevation', 'radius', 'space'])
+
+export function brandFromDocuments(
+	brandDoc: unknown,
+	componentsDoc: unknown,
+	overrides: Partial<Brand> = {}
+): Brand {
+	validateBrandDocument(brandDoc)
+	validateComponentsDocument(componentsDoc)
 
 	const scales: BrandScales = {
 		type: flatten(brandDoc.scale.type),
