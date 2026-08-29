@@ -61,6 +61,16 @@ export type IconDef = {
 
 export type IconRegistry = Record<string, IconDef>
 
+/**
+ * The stroke weight of the whole set, on the 24 grid.
+ *
+ * 1.6 rather than lucide's 2. The figures sit on a duotone backing here, and at
+ * weight 2 the line reads heavier than the tint it is paired with — the two
+ * halves stop looking like one drawing. Set once, because a set whose weight
+ * varies per icon is not a set.
+ */
+const STROKE = 1.6
+
 /** `0 0 24 24` and nothing more adventurous. */
 const VIEWBOX = /^-?\d+(\.\d+)? -?\d+(\.\d+)? \d+(\.\d+)? \d+(\.\d+)?$/
 
@@ -131,7 +141,7 @@ export function renderIcon(
 	const size = /^[0-9.]+(rem|em|px|%)?$/.test(options.size ?? '') ? options.size : '1em'
 	const title = options.title ?? icon.title
 	const paint = icon.stroke
-		? 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
+		? `fill="none" stroke="currentColor" stroke-width="${STROKE}" stroke-linecap="round" stroke-linejoin="round"`
 		: 'fill="currentColor"'
 	return [
 		`<svg viewBox="${icon.viewBox}" width="${size}" height="${size}" ${paint}`,
@@ -163,7 +173,7 @@ function figure(icon: IconDef): string {
 	const scale = 1 - inset
 	/* Scaling a stroke scales its width too, which thins the figure as it
 	   shrinks. Dividing the stroke back out keeps the line weight the set's. */
-	const stroke = icon.stroke ? ` stroke-width="${round(2 / scale)}"` : ''
+	const stroke = icon.stroke ? ` stroke-width="${round(STROKE / scale)}"` : ''
 	return [
 		icon.paths.filter(isBacking).map(draw).join(''),
 		`<g transform="translate(${round(cx * inset)} ${round(cy * inset)}) scale(${round(scale)})"${stroke}>`,

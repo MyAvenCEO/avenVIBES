@@ -182,7 +182,7 @@ suite('insetting the figure inside its backing', () => {
 		expect(svg).toContain('scale(0.78)')
 		/* Scaling a stroke thins it; the width is divided back out so the line
 		   weight stays the set's. */
-		expect(svg).toContain('stroke-width="2.564"')
+		expect(svg).toContain('stroke-width="2.051"')
 	})
 
 	test('an icon with no inset emits no group at all', () => {
