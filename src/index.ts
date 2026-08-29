@@ -182,5 +182,14 @@ export {
 	validateRegistry,
 	validateUnit
 } from './unit.js'
-export { validateViewDef } from './view-validator.js'
+/**
+ * The expression evaluator, and the reason it is exported.
+ *
+ * `renderViewToString` takes an `evaluate` function and the package shipped
+ * none, so the one thing every static consumer needs — turning `$props.label`
+ * into a value — was sealed behind the export map. Every caller either wrote
+ * its own resolver, which then disagreed with the DOM renderer's, or could not
+ * render at all. Found by trying to use the published package from outside.
+ */
+export { Evaluator, validateViewDef } from './view-validator.js'
 export { VibeEngine as default }
