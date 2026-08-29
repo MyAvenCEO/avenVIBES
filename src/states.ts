@@ -157,7 +157,9 @@ export function compileUnitStyling(name: string, styling: UnitStyling): Record<s
 			/* The state lives on the PART's class — `.field-control:focus` — not
 			   on the unit's, because the thing that takes focus is the input. */
 			const key = `${name}-${$part}`
-			;(partStates[key] ??= {})[`&${selector}`] = strip(rest)
+			const existing = partStates[key] ?? {}
+			existing[`&${selector}`] = strip(rest)
+			partStates[key] = existing
 		} else base[`&${selector}`] = strip(rest)
 	}
 
