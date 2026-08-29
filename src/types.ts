@@ -11,6 +11,15 @@ export type ViewNode = {
 	$use?: import('./unit.js').UseDef
 	/** Render the children a parent passed into this named slot. */
 	$children?: string
+	/**
+	 * Draw a registered icon here.
+	 *
+	 * A NAME, never markup. `SAFE_TAGS` admits no SVG because a view that can
+	 * emit arbitrary SVG can emit script; this is the one door, and it opens
+	 * onto a registry whose contents were validated as geometry when they were
+	 * registered.
+	 */
+	$icon?: { name: string; size?: string; title?: string }
 	$on?: Record<string, UiEventDef>
 }
 

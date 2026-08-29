@@ -1,3 +1,4 @@
+import { type IconRegistry, renderIcon } from './icons.js'
 import { type MessageCatalog, translate } from './messages.js'
 import { SAFE_TAGS, sanitizeAttributeWhitelist } from './security.js'
 import type { RenderData, ViewDef, ViewNode } from './types.js'
@@ -70,6 +71,8 @@ export interface StringRenderOptions {
 	evaluate: Evaluate
 	/** Units a `$use` may place. Must be the same registry the DOM renderer uses. */
 	units?: UnitRegistry
+	/** Icons a `$icon` may draw. Must be the same registry the DOM renderer uses. */
+	icons?: IconRegistry
 	/** The locale's copy, for `$t`. */
 	messages?: MessageCatalog
 }
@@ -146,7 +149,9 @@ async function renderNode(
 				: escapeText(String(resolved ?? ''))
 	}
 
-	if (node.$use) {
+	if (node.$icon) {
+		inner = renderIcon(node.$icon.name, options.icons ?? {}, node.$icon)
+	} else if (node.$use) {
 		inner = await renderUse(node, data, options, path)
 	} else if (node.$children) {
 		inner = await renderChildren(node.$children, data, options, path)

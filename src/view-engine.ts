@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
+import { type IconRegistry, renderIcon } from './icons.js'
 import { HOST, type MessageCatalog, MessageRouter, resolveAddress, translate } from './messages.js'
 import {
 	BOOLEAN_ATTRS,
@@ -49,6 +50,8 @@ export type ViewEngineOptions = {
 	containerName?: string
 	/** Units a `$use` may place. */
 	units?: UnitRegistry
+	/** Icons a `$icon` may draw. */
+	icons?: IconRegistry
 	/** The locale's copy, for `$t`. */
 	messages?: MessageCatalog
 	/** Shared with the caller so a host can register inboxes of its own. */
@@ -68,6 +71,7 @@ export class ViewEngine {
 	private containerName = 'aven-ui'
 	private currentState: Record<string, unknown> = {}
 	private units: UnitRegistry = {}
+	private icons: IconRegistry = {}
 	private messages: MessageCatalog = {}
 	private router = new MessageRouter()
 
@@ -75,6 +79,7 @@ export class ViewEngine {
 		this.onEvent = options.onEvent
 		this.containerName = options.containerName ?? 'aven-ui'
 		this.units = options.units ?? {}
+		this.icons = options.icons ?? {}
 		this.messages = options.messages ?? {}
 		if (options.router) this.router = options.router
 		/* The surface outside the vibe is an inbox like any other, which is what
@@ -190,7 +195,11 @@ export class ViewEngine {
 			}
 		}
 
-		if (node.$use) {
+		if (node.$icon) {
+			/* The markup comes from `renderIcon`, which builds every attribute
+			   itself from validated geometry — the view supplied only a name. */
+			element.innerHTML = renderIcon(node.$icon.name, this.icons, node.$icon)
+		} else if (node.$use) {
 			const placed = await this.renderUse(node, data, path)
 			if (placed) element.appendChild(placed)
 		} else if (node.$children) {

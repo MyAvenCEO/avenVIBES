@@ -140,6 +140,13 @@ export class VibeEngine {
 }
 
 export {
+	type IconDef,
+	type IconRegistry,
+	renderIcon,
+	validateIcon,
+	validateIconRegistry
+} from './icons.js'
+export {
 	type Address,
 	HOST,
 	type Inbox,
