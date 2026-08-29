@@ -237,3 +237,37 @@ suite('the theme declares everything its roles reference', () => {
 		expect(css).toContain('--color-on-brand: #abcdef')
 	})
 })
+
+suite('a scale that is not emitted is a scale that does not exist', () => {
+	/*
+	 * Every `transition` in a whole component library was dead. The units wrote
+	 * `transition: background var(--duration-quick) var(--ease-out)`; the brand
+	 * had no motion scale, and `scaleTokens` had no motion group to spread even
+	 * if it had. The declaration then contained two empty strings, which is
+	 * invalid CSS and is discarded in full — so `transition-duration` computed to
+	 * `0s` on every button in the system, every gate stayed green, and nothing
+	 * rendered wrong enough for anyone to look.
+	 *
+	 * An undefined custom property is not an error. It is an empty string. That
+	 * is exactly why this has to be checked where the tokens are assembled
+	 * rather than trusted to turn up in the output.
+	 */
+	test('a motion group reaches scaleTokens', () => {
+		const doc = completeBrand()
+		doc.scale.motion = {
+			'duration-quick': { $value: '140ms' },
+			'ease-out': { $value: 'cubic-bezier(0.2, 0, 0, 1)' }
+		}
+		const brand = brandFromDocuments(doc, pieces)
+		expect(brand.scaleTokens['duration-quick']).toBe('140ms')
+		expect(brand.scaleTokens['ease-out']).toBe('cubic-bezier(0.2, 0, 0, 1)')
+	})
+
+	test('a brand with no motion still builds', () => {
+		/* Optional: a brand with no motion must not be forced to declare an empty
+		   group to satisfy the type. */
+		const brand = brandFromDocuments(completeBrand(), pieces)
+		expect(brand.scaleTokens['duration-quick']).toBeUndefined()
+		expect(Object.keys(brand.scaleTokens).length).toBeGreaterThan(0)
+	})
+})
