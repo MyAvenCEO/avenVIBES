@@ -131,3 +131,31 @@ describe('every block is stripped, not just some', () => {
 	})
 })
 
+describe('"this is the current one" is spelled three ways', () => {
+	/*
+	 * A sidebar documented a selected state, declared it, marked its current
+	 * item the only correct way for a navigation — `aria-current="page"` — and
+	 * rendered nothing, because the selector matched `aria-selected` alone.
+	 * Putting `aria-selected` on an `<a>` to satisfy it is invalid ARIA that axe
+	 * rejects, so the unit had no way to be right.
+	 */
+	test('selected matches aria-selected, aria-pressed AND aria-current', () => {
+		const out = compileUnitStyling('nav-item', {
+			states: { selected: { fontWeight: '600' } }
+		} as never)
+		const selector = Object.keys(out['nav-item']).find((k) => k.startsWith('&['))
+		expect(selector).toContain('aria-selected="true"')
+		expect(selector).toContain('aria-pressed="true"')
+		expect(selector).toContain('aria-current')
+	})
+
+	test('aria-current="false" is not current', () => {
+		/* The attribute's own way of saying "not this one". A bare
+		   `[aria-current]` matches it and marks every item in the list. */
+		const out = compileUnitStyling('nav-item', {
+			states: { selected: { fontWeight: '600' } }
+		} as never)
+		const selector = Object.keys(out['nav-item']).find((k) => k.startsWith('&['))
+		expect(selector).toContain(':not([aria-current="false"])')
+	})
+})
