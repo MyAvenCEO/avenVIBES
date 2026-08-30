@@ -135,6 +135,19 @@ export class MessageRouter {
 	}
 
 	/**
+	 * An inbox refusing a message its contract does not name.
+	 *
+	 * Same consequences as an address nobody registered — the undeliverable
+	 * handler hears it, then the host — because a typo'd `send` half-applied is
+	 * the message equivalent of the silently ignored prop. The inbox EXISTS; it
+	 * is the contract that says no, and the refusal has to be as loud as a miss.
+	 */
+	async refuse(event: UiEvent, address: Address): Promise<void> {
+		this.onUndeliverable?.(event, address)
+		await this.host?.({ ...event, to: address })
+	}
+
+	/**
 	 * Drop the inboxes this mount created, keeping the host's own.
 	 *
 	 * Called when a vibe unmounts, including the implicit unmount at the start

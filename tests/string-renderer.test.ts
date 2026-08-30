@@ -124,3 +124,24 @@ describe('the output is usable as a static file', () => {
 		expect(html).toContain('>Go</button>')
 	})
 })
+
+describe('boolean attributes agree with the DOM renderer', () => {
+	/* `setAttr` in the DOM renderer gates bare-or-omitted on BOOLEAN_ATTRS and
+	   stringifies every other boolean. The string renderer treated ALL booleans
+	   as bare-or-omitted, so `aria-expanded: false` vanished from the static
+	   file while the browser rendered `aria-expanded="false"` — the closed
+	   menu's toggle told a screen reader nothing until JavaScript arrived. */
+	test('an HTML boolean renders bare when true and vanishes when false', async () => {
+		expect(await render({ tag: 'button', attrs: { disabled: true } })).toContain(' disabled')
+		expect(await render({ tag: 'button', attrs: { disabled: false } })).not.toContain('disabled')
+	})
+
+	test('an ARIA boolean renders its string either way', async () => {
+		expect(await render({ tag: 'button', attrs: { 'aria-expanded': false } })).toContain(
+			'aria-expanded="false"'
+		)
+		expect(await render({ tag: 'button', attrs: { 'aria-expanded': true } })).toContain(
+			'aria-expanded="true"'
+		)
+	})
+})
