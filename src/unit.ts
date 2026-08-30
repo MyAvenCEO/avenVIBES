@@ -249,6 +249,40 @@ export function layoutClasses(layout: LayoutDef | undefined): string {
  * `index` do carry through, so a unit placed inside `$each` can still read the
  * row it belongs to.
  */
+/**
+ * Resolve a unit view's `part` names into the classes its stylesheet emits.
+ *
+ * `compileUnitStyling` addresses a unit's anatomy as `.unit-part` — that is
+ * where `.nav-menu-crest` and every selector like it comes from — but the
+ * renderers knew nothing of `part`, so a placed unit rendered its structure
+ * with NO classes at all: the stylesheet named parts and nothing wore the
+ * names. Every `$use` of a real library unit came out unstyled, which is why
+ * the surfaces kept hand-writing the markup the units were supposed to own.
+ *
+ * Resolved HERE, in placement, because this is the one spot all three walks
+ * share — the DOM renderer, the string renderer and the hydrator all render
+ * what `expandUse` returns, so the class algebra cannot drift between build
+ * and client. The walk stops at nested `$use`: that unit expands later, under
+ * its own name. Slot content is untouched — it belongs to the caller's view
+ * and was resolved (or not) in the caller's own context.
+ *
+ * Cached per unit: the resolution is pure and a unit's view does not change
+ * between placements.
+ */
+const partResolved = new WeakMap<object, ViewNode>()
+
+function resolveParts(node: ViewNode, unitName: string): ViewNode {
+	if (!node || typeof node !== 'object') return node
+	const out: ViewNode = { ...node }
+	if (out.part) {
+		const partClass = `${unitName}-${out.part}`
+		out.class = out.class ? `${partClass} ${out.class}` : partClass
+	}
+	if (out.children) out.children = out.children.map((c) => resolveParts(c, unitName))
+	if (out.$each) out.$each = { ...out.$each, template: resolveParts(out.$each.template, unitName) }
+	return out
+}
+
 export function expandUse(
 	use: UseDef,
 	registry: UnitRegistry,
@@ -272,9 +306,14 @@ export function expandUse(
 	const layout = layoutClasses(unit.layout)
 	const variants = unit.styling ? variantClasses(unit.name, use.variants ?? {}) : ''
 	const extra = [layout, variants].filter(Boolean).join(' ')
+	let resolved = partResolved.get(unit)
+	if (!resolved) {
+		resolved = resolveParts(unit.view, unit.name)
+		partResolved.set(unit, resolved)
+	}
 	const node: ViewNode = extra
-		? { ...unit.view, class: [extra, unit.view.class].filter(Boolean).join(' ') }
-		: unit.view
+		? { ...resolved, class: [extra, resolved.class].filter(Boolean).join(' ') }
+		: resolved
 
 	return {
 		node,

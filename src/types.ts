@@ -1,6 +1,17 @@
 export type ViewNode = {
 	tag?: string
 	class?: string
+	/**
+	 * The unit-scoped name of this piece of the unit's anatomy.
+	 *
+	 * A unit's stylesheet addresses its internals as `.unit-part` — the crest
+	 * of `nav-menu` is `.nav-menu-crest` — and `part` is how the VIEW says
+	 * which node that is. `expandUse` resolves it against the owning unit's
+	 * name at placement, so the view never hardcodes its own unit name and a
+	 * renamed unit re-addresses every part in one edit. Outside a unit the
+	 * key is inert: only placement gives it a name to resolve against.
+	 */
+	part?: string
 	text?: string
 	value?: string
 	format?: 'md' | 'markdown'
