@@ -48,6 +48,26 @@ export type UnitInterface = {
 	props?: Record<string, string>
 	/** Events this unit emits, `name -> payload shape`. */
 	events?: Record<string, Record<string, string>>
+	/**
+	 * Messages this unit RECEIVES, `name -> payload shape` — the mirror of
+	 * `events`, and the half the interface was missing.
+	 *
+	 * A unit could always declare what goes out; what came in was a convention
+	 * living in whoever wired the composition. That asymmetry made the inbox
+	 * informal: nothing checked a message name, nothing documented what a unit
+	 * answered to, and the docs surface had nothing to list.
+	 *
+	 * Declaring `accepts` does three things at once. It registers an inbox for
+	 * the unit at mount — WITHOUT a sandbox: an inbox is a Map entry, and gating
+	 * the cheap half of the actor model on the expensive half is the conflation
+	 * this field exists to undo. It makes the inbox a CONTRACT: a message whose
+	 * name is not listed is undeliverable, loudly, instead of half-handled. And
+	 * where the unit declares no `logic`, the engine serves the inbox itself by
+	 * merging the payload into the unit's state slice — a declarative handler,
+	 * which is all most interactive units need. `logic` upgrades the handler; it
+	 * no longer gates the address.
+	 */
+	accepts?: Record<string, Record<string, string>>
 	/** Named slots, and optionally which units may fill them. */
 	slots?: Record<string, { accepts?: string[]; required?: boolean }>
 }
@@ -138,6 +158,20 @@ export function validateUnit(unit: unknown, at = 'unit'): asserts unit is UnitDe
 	if (u.interface?.slots)
 		for (const [slot, def] of Object.entries(u.interface.slots))
 			if (def && typeof def !== 'object') problems.push(`slot \`${slot}\` is not an object`)
+	if (u.interface?.accepts)
+		for (const [message, shape] of Object.entries(u.interface.accepts)) {
+			if (!shape || typeof shape !== 'object')
+				problems.push(`accepts \`${message}\` declares no payload shape (use {} for none)`)
+			else
+				for (const [field, hint] of Object.entries(shape))
+					if (typeof hint !== 'string')
+						problems.push(`accepts \`${message}\`.\`${field}\`: type hint must be a string`)
+		}
+	/* Logic with no inbox contract is an actor nobody can talk to on purpose —
+	   almost always a unit written before `accepts` existed. Refusing it here
+	   turns a silent dead letterbox into a build error with a named fix. */
+	if (u.logic && !u.interface?.accepts)
+		problems.push('declares `logic` but no `interface.accepts` — an inbox with no contract')
 	if (u.styling && u.name) problems.push(...checkStateContract(u.name, u.styling))
 	if (problems.length) throw new Error(`${at} (${u.name ?? 'unnamed'}): ${problems.join('; ')}`)
 }
@@ -315,4 +349,18 @@ export type SandboxHost = {
  */
 export function unitsWithLogic(registry: UnitRegistry): UnitDef[] {
 	return Object.values(registry).filter((unit) => Boolean(unit.logic))
+}
+
+/**
+ * Which units in a registry get an inbox: everything that declares `accepts`.
+ *
+ * Distinct from `unitsWithLogic` on purpose, because the two questions were
+ * fused and the fusion was the bug: reception was gated on the sandbox, so on
+ * a surface with no QuickJS configured NO unit could receive a message at all.
+ * An inbox costs a Map entry; a sandbox costs a context. A unit is an actor —
+ * an address with a declared inbox — whether or not anything expensive serves
+ * that inbox. The UNIT is the class; the placed instance is the actor.
+ */
+export function unitsWithInbox(registry: UnitRegistry): UnitDef[] {
+	return Object.values(registry).filter((unit) => Boolean(unit.interface?.accepts))
 }

@@ -10,11 +10,11 @@
  * Nothing here knows about any particular brand or product. Tokens are injected
  * through the bundle's style, so the framework is the same wherever it runs.
  */
+import { wireInboxes } from './inboxes.js'
 import { MessageRouter } from './messages.js'
 import { StateStore } from './state-store.js'
 import type { UiBundle, UiEvent, VibeEngineOptions } from './types.js'
 import type { SandboxHost, UnitInstance } from './unit.js'
-import { unitsWithLogic } from './unit.js'
 import { ViewEngine } from './view-engine.js'
 
 export class VibeEngine {
@@ -48,7 +48,7 @@ export class VibeEngine {
 			messages: bundle.messages,
 			router: this.router
 		})
-		await this.startLogic(bundle)
+		await this.startInboxes(bundle)
 		this.shadowRoot = await this.viewEngine.mount(
 			this.container,
 			bundle.view,
@@ -61,31 +61,32 @@ export class VibeEngine {
 	}
 
 	/**
-	 * Start a sandbox instance for every unit that declares logic, and give each
-	 * one an inbox at its own name.
+	 * Register every actor's inbox, and start a sandbox only where `logic`
+	 * demands one.
 	 *
-	 * Addressed by NAME rather than by instance path, because a unit with logic
-	 * is a singleton actor within a vibe — a todo list, a chat, a checkout — and
-	 * the composition addresses it as `todo`, not as `0.2.1`. Per-instance
-	 * actors, if they are ever needed, would register under the path instead;
-	 * the router does not care which.
+	 * This replaces `startLogic`, whose first line was `if (!this.sandbox)
+	 * return` — reception gated on the runtime, so a surface with no QuickJS
+	 * had no addressable units at all. The wiring now lives in `inboxes.ts`,
+	 * shared with `Island`, and splits the tiers: an `accepts` contract gets a
+	 * declarative inbox for the cost of a Map entry; only `logic` needs the
+	 * sandbox, and a missing sandbox silences that one unit loudly instead of
+	 * every unit silently.
+	 *
+	 * Addressed by NAME rather than by instance path, because an inbox-bearing
+	 * unit is a singleton actor within a vibe — a todo list, a chat, a checkout
+	 * — and the composition addresses it as `todo`, not as `0.2.1`.
+	 * Per-instance actors, if they are ever needed, would register under the
+	 * path instead; the router does not care which.
 	 */
-	private async startLogic(bundle: UiBundle): Promise<void> {
-		if (!this.sandbox || !bundle.units) return
-		for (const unit of unitsWithLogic(bundle.units)) {
-			const instance = await this.sandbox.start({
-				unit,
-				address: unit.name,
-				initialState: unit.state ?? {}
-			})
-			this.instances.set(unit.name, instance)
-			this.router.registerOwned(unit.name, async (event) => {
-				const next = await instance.send({ send: event.send, payload: event.payload })
-				/* A unit's logic owns its own state, so what comes back replaces
-				   that unit's slice and nothing else. */
-				if (next) await this.updateState({ [unit.name]: next })
-			})
-		}
+	private async startInboxes(bundle: UiBundle): Promise<void> {
+		const wired = await wireInboxes({
+			bundle,
+			router: this.router,
+			sandbox: this.sandbox,
+			updateState: (partial) => this.updateState(partial),
+			getState: () => this.getState()
+		})
+		this.instances = wired.instances
 	}
 
 	async replaceState(state: Record<string, unknown>): Promise<void> {
@@ -187,9 +188,13 @@ export {
 	type UnitInterface,
 	type UnitRegistry,
 	type UseDef,
+	unitsWithInbox,
+	unitsWithLogic,
 	validateRegistry,
 	validateUnit
 } from './unit.js'
+export { Island, type IslandOptions } from './island.js'
+export { type InboxWiringOptions, type WiredInboxes, wireInboxes } from './inboxes.js'
 /**
  * The expression evaluator, and the reason it is exported.
  *

@@ -62,6 +62,22 @@ export type UiBundle = {
 	units?: import('./unit.js').UnitRegistry
 	/** The locale's copy, resolved by `$t`. Injected here, cascades to every unit. */
 	messages?: import('./messages.js').MessageCatalog
+	/**
+	 * The vibe root's own address, when it accepts messages of its own.
+	 *
+	 * A vibe is a composite like any other, and the root is an actor like any
+	 * placed unit — a menu island whose root state holds `open` has to be
+	 * addressable, or the only way in is `$host` and the host has to know the
+	 * island's internals. Optional because a vibe that only composes other
+	 * actors has nothing to receive.
+	 */
+	name?: string
+	/**
+	 * Messages the ROOT accepts, `name -> payload shape` — the root's inbox
+	 * contract, served declaratively: the payload merges into the root state.
+	 * Same rule as a unit's `interface.accepts`, at the level above.
+	 */
+	accepts?: Record<string, Record<string, string>>
 }
 
 export type RenderData = {

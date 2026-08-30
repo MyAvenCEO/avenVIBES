@@ -122,6 +122,107 @@ export class ViewEngine {
 		this.restoreFocus(shadowRoot, focus)
 	}
 
+	/**
+	 * Render a view to a detached element tree — the DOM half of
+	 * `renderViewToString`, exposed for hosts that render into LIGHT DOM.
+	 *
+	 * The shadow-root path (`mount`/`render`) is right for a vibe that owns its
+	 * whole surface. An island hydrated into a prerendered page is different:
+	 * its markup sits in the page's own DOM, styled by the page's own
+	 * stylesheet, and moving it into a shadow root would cut it off from the
+	 * brand CSS it was rendered with. So an island re-renders by building the
+	 * tree here and swapping it in place.
+	 */
+	async renderTree(viewDef: ViewDef, state: Record<string, unknown>): Promise<HTMLElement | null> {
+		validateViewDef(viewDef)
+		this.currentState = state
+		const viewNode = viewDef.content ?? viewDef
+		return this.renderNode(viewNode, { state }, '0')
+	}
+
+	/**
+	 * HYDRATE: attach behaviour to markup a build already wrote.
+	 *
+	 * The string renderer and `renderNode` stamp the same `data-aven-path` on
+	 * every node — same root, same `.${i}`, same `.$each.${i}`, same `~unit`,
+	 * same slot form. That shared algebra is what makes this walk possible: it
+	 * re-traverses the DEFINITION, computes the path each node must have
+	 * landed at, finds that element in the static markup, and attaches the
+	 * `$on` listeners. It creates nothing, diffs nothing and never touches
+	 * text — the markup is already correct, because both renderers walk one
+	 * definition.
+	 *
+	 * Scoping mirrors `renderNode` exactly: `$use` expands with the unit's own
+	 * state and resolved props, `$each` re-evaluates its items against state,
+	 * slots walk the children the caller passed. An event fired later reads
+	 * `this.currentState` at delivery time, so hydrated listeners and rendered
+	 * listeners are indistinguishable once attached.
+	 */
+	async hydrate(
+		root: ParentNode,
+		viewDef: ViewDef,
+		state: Record<string, unknown>
+	): Promise<number> {
+		validateViewDef(viewDef)
+		this.currentState = state
+		const viewNode = viewDef.content ?? viewDef
+		return this.hydrateNode(root, viewNode, { state }, '0')
+	}
+
+	private async hydrateNode(
+		root: ParentNode,
+		node: ViewNode,
+		data: RenderData,
+		path: string
+	): Promise<number> {
+		if (!node) return 0
+		let attached = 0
+
+		if (node.$on) {
+			const el = root.querySelector(`[data-aven-path="${CSS.escape(path)}"]`)
+			if (el instanceof HTMLElement) {
+				this.attachEvents(el, node.$on, data)
+				attached += Object.keys(node.$on).length
+			}
+		}
+
+		if (node.$use) {
+			const use = node.$use
+			const resolved: Record<string, unknown> = {}
+			for (const [name, expr] of Object.entries(use.props ?? {}))
+				resolved[name] = await this.evaluator.evaluate(expr, data)
+			const expanded = expandUse(use, this.units, data, resolved)
+			attached += await this.hydrateNode(root, expanded.node, expanded.data, `${path}~${use.unit}`)
+		} else if (node.$children) {
+			const passed = data.slots?.[node.$children]
+			if (passed) {
+				const nodes = Array.isArray(passed) ? passed : [passed]
+				for (let i = 0; i < nodes.length; i++)
+					attached += await this.hydrateNode(
+						root,
+						nodes[i],
+						data,
+						`${path}.${node.$children}.${i}`
+					)
+			}
+		} else if (node.$each) {
+			const items = await this.evaluator.evaluate(node.$each.items, data)
+			if (Array.isArray(items))
+				for (let i = 0; i < items.length; i++)
+					attached += await this.hydrateNode(
+						root,
+						node.$each.template,
+						{ state: data.state, item: items[i], index: i },
+						`${path}.$each.${i}`
+					)
+		} else if (node.children) {
+			for (let i = 0; i < node.children.length; i++)
+				attached += await this.hydrateNode(root, node.children[i], data, `${path}.${i}`)
+		}
+
+		return attached
+	}
+
 	private captureFocus(shadowRoot: ShadowRoot): FocusSnapshot | null {
 		const active =
 			shadowRoot.activeElement ??

@@ -1,6 +1,6 @@
 import { type IconRegistry, renderIcon } from './icons.js'
 import { type MessageCatalog, translate } from './messages.js'
-import { SAFE_TAGS, sanitizeAttributeWhitelist } from './security.js'
+import { BOOLEAN_ATTRS, SAFE_TAGS, sanitizeAttributeWhitelist } from './security.js'
 import type { RenderData, ViewDef, ViewNode } from './types.js'
 import { expandUse, type UnitRegistry } from './unit.js'
 import { renderMarkdown } from './view-engine.js'
@@ -121,9 +121,21 @@ async function renderNode(
 		for (const [name, value] of Object.entries(node.attrs)) {
 			const resolved = await options.evaluate(value, data)
 			if (resolved === undefined || resolved === null) continue
-			// Boolean attributes render bare or not at all, as in HTML.
+			/* Bare-or-omitted is the rule for HTML's OWN boolean attributes and
+			   for nothing else — the same gate the DOM renderer's `setAttr` has
+			   always applied. This used to treat EVERY boolean value that way,
+			   which made the two renderers disagree on the attributes where the
+			   string "false" is meaningful: `aria-expanded: false` rendered as
+			   `aria-expanded="false"` in the browser and vanished from the
+			   static file. A closed menu's toggle told a screen reader nothing
+			   at all until JavaScript arrived — precisely the reader the static
+			   file exists to serve first. */
 			if (typeof resolved === 'boolean') {
-				if (resolved) attrs.push(name)
+				if (BOOLEAN_ATTRS.has(name.toLowerCase())) {
+					if (resolved) attrs.push(name)
+				} else {
+					attrs.push(`${name}="${resolved}"`)
+				}
 				continue
 			}
 			attrs.push(`${name}="${escapeAttribute(sanitizeAttributeWhitelist(resolved))}"`)
