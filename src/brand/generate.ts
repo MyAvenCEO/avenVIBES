@@ -38,6 +38,16 @@ export function createGenerator(brand: Brand) {
 	const SCALE_TOKENS = brand.scaleTokens
 	const COMPONENTS = brand.components
 	const LAYOUTS = brand.layouts
+	/* Every `var(--x, …)` knob the layouts read, taken from the layouts rather
+	   than listed here — a hand-kept list would drift the first time one is
+	   added. */
+	const LAYOUT_KNOBS = [
+		...new Set(
+			JSON.stringify(LAYOUTS)
+				.match(/var\(\s*(--[a-z0-9-]+)\s*,/g)
+				?.map((m) => m.replace(/var\(\s*/, '').replace(/\s*,$/, '')) ?? []
+		)
+	].filter((k) => !k.startsWith('--space') && !k.startsWith('--color'))
 	const APP_ICON_PLATE = brand.appIconPlate
 	/** Which surface a theme is being generated for. */
 	type ThemeVariant = Audience
@@ -316,6 +326,25 @@ export function createGenerator(brand: Brand) {
 			' * overridden by any utility, which is how `.transition-all` kept its 0.15s',
 			' * through a correctly written reset. Last means it wins by cascade rather',
 			' * than by `!important`. */',
+			'',
+			/*
+			 * The layout knobs, declared NON-INHERITING.
+			 *
+			 * A plain custom property inherits, and these primitives nest — a
+			 * `.stack` inside a `.stack` is the normal case, not the exception.
+			 * So `--gap: 2.5rem` set on an outer stack silently became the gap of
+			 * every stack inside it, and the inner ones lost the default they were
+			 * written to rely on. Measured when it happened: 320 of 420 elements
+			 * moved on one page, from one property on one ancestor.
+			 *
+			 * `syntax: '*'` with no `initial-value` is the one combination that
+			 * gives a guaranteed-invalid initial — so an element that does not set
+			 * the knob falls through to the `var()` fallback exactly as before,
+			 * and an element that does set it affects only itself.
+			 */
+			...LAYOUT_KNOBS.map(
+				(k) => `@property ${k} {\n\tsyntax: '*';\n\tinherits: false;\n}`
+			),
 			'',
 			'@layer primitives {',
 			'\t/* The shapes almost every layout is made of. Each is one idea, tuned',
