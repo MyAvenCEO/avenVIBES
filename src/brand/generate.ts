@@ -277,6 +277,18 @@ export function createGenerator(brand: Brand) {
 		const nested: string[] = []
 
 		for (const [key, value] of Object.entries(decls)) {
+			/*
+			 * `$`-prefixed keys DOCUMENT the rule; they are not part of it.
+			 *
+			 * This was stripped where a unit's top-level `$description` is read
+			 * and nowhere else, so a note written on a NESTED block — a
+			 * `&::before`, a `@container` — was emitted verbatim as
+			 * `$description: The rule, drawn on the …;`. A parser drops the
+			 * unknown property silently, so the stylesheet still worked and the
+			 * documentation shipped inside it. Handled here instead, where every
+			 * depth passes through.
+			 */
+			if (key.startsWith('$')) continue
 			if (value && typeof value === 'object' && !Array.isArray(value)) {
 				// `&:hover` / `@container …` — a rule, not a declaration.
 				nested.push(emitRule(key, value as Record<string, unknown>, depth + 1))
