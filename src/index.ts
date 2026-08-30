@@ -155,9 +155,18 @@ export {
 	type LayoutDef,
 	layoutClasses,
 	registryStyles,
+	/* Deprecated unit-taxonomy aliases — exported so pre-rename consumers
+	   (avenOS) compile until they migrate. */
+	type UnitDef,
+	type UnitInstance,
+	type UnitInterface,
+	type UnitRegistry,
 	type UseDef,
+	unitsWithInbox,
+	unitsWithLogic,
 	validateActor,
-	validateRegistry
+	validateRegistry,
+	validateUnit
 } from './actor.js'
 export { DOCS, type DocSection } from './docs.js'
 export {
@@ -196,6 +205,8 @@ export { renderViewToString, type StringRenderOptions } from './string-renderer.
 export { validateStyleDef } from './style-validator.js'
 export type {
 	StyleDef,
+	/** @deprecated use Vibe */
+	UiBundle,
 	UiEvent,
 	Vibe,
 	ViewDef,
