@@ -28,11 +28,12 @@
  * island unchanged — declarative inboxes without a sandbox, sandboxed logic
  * when a host is supplied.
  */
+
+import type { ActorInstance, SandboxHost } from './actor.js'
 import { wireInboxes } from './inboxes.js'
 import { MessageRouter } from './messages.js'
 import { StateStore } from './state-store.js'
-import type { UiBundle, UiEvent } from './types.js'
-import type { SandboxHost, UnitInstance } from './unit.js'
+import type { UiEvent, Vibe } from './types.js'
 import { ViewEngine } from './view-engine.js'
 
 export type IslandOptions = {
@@ -54,8 +55,8 @@ export class Island {
 	private readonly viewEngine = new ViewEngine()
 	private readonly router = new MessageRouter()
 	private readonly stateStore = new StateStore()
-	private instances = new Map<string, UnitInstance>()
-	private bundle: Omit<UiBundle, 'style'> | null = null
+	private instances = new Map<string, ActorInstance>()
+	private bundle: Omit<Vibe, 'style'> | null = null
 	private unsubState: (() => void) | null = null
 
 	constructor(options: IslandOptions) {
@@ -73,7 +74,7 @@ export class Island {
 	 * a different bundle, a stale build — and the caller should be able to
 	 * notice without diffing DOM.
 	 */
-	async hydrate(bundle: Omit<UiBundle, 'style'>): Promise<number> {
+	async hydrate(bundle: Omit<Vibe, 'style'>): Promise<number> {
 		await this.dispose()
 		this.bundle = bundle
 		this.stateStore.set(bundle.state)
@@ -85,7 +86,7 @@ export class Island {
 			router: this.router
 		})
 		const wired = await wireInboxes({
-			bundle: bundle as UiBundle,
+			bundle: bundle as Vibe,
 			router: this.router,
 			sandbox: this.sandbox,
 			updateState: (partial) => {

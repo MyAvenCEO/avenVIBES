@@ -19,7 +19,7 @@ export type ViewNode = {
 	children?: ViewNode[]
 	$each?: { items: string; template: ViewNode }
 	/** Place another unit here, with values and children. See `unit.ts`. */
-	$use?: import('./unit.js').UseDef
+	$use?: import('./actor.js').UseDef
 	/** Render the children a parent passed into this named slot. */
 	$children?: string
 	/**
@@ -65,12 +65,12 @@ export type UiEvent = {
 	payload: Record<string, unknown>
 }
 
-export type UiBundle = {
+export type Vibe = {
 	view: ViewDef
 	style: StyleDef
 	state: Record<string, unknown>
 	/** The units this vibe's view may place with `$use`. */
-	units?: import('./unit.js').UnitRegistry
+	units?: import('./actor.js').ActorRegistry
 	/** The locale's copy, resolved by `$t`. Injected here, cascades to every unit. */
 	messages?: import('./messages.js').MessageCatalog
 	/**
@@ -90,6 +90,13 @@ export type UiBundle = {
 	 */
 	accepts?: Record<string, Record<string, string>>
 }
+
+/**
+ * @deprecated The taxonomy settled on its own words: a delivered bundle IS the
+ * vibe, so the type is named `Vibe`. This alias keeps existing consumers
+ * compiling; new code names the real thing.
+ */
+export type UiBundle = Vibe
 
 export type RenderData = {
 	state: Record<string, unknown>
@@ -111,7 +118,7 @@ export type VibeEngineOptions = {
 	 * Optional: a vibe of purely presentational units needs no sandbox, and the
 	 * engine must not require a platform it cannot provide.
 	 */
-	sandbox?: import('./unit.js').SandboxHost
+	sandbox?: import('./actor.js').SandboxHost
 	/**
 	 * Icons a view's `$icon` may draw.
 	 *

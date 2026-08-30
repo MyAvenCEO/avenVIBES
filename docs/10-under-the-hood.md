@@ -84,14 +84,14 @@ constructable stylesheets: tokens flatten to CSS custom properties on
 `:host` (with container-query setup), components become class rules
 with `{token.path}` interpolation, and every interpolated value passes
 the injection screen. Sheets are cached by style content, so remounts
-do not recompile. Above it, `compileUnitStyling` translates each unit's
+do not recompile. Above it, `compileUnitStyling` translates each actor's
 `styling` declaration — base, parts, variants, states, keyframes,
 reduced motion — into that flat components map, with the state
-selectors fixed centrally so two units cannot spell `focus` differently.
+selectors fixed centrally so two actors cannot spell `focus` differently.
 
 ## Where to go from here
 
-Read `src/unit.ts` first; it is the most commented file in the engine
+Read `src/actor.ts` first; it is the most commented file in the engine
 and carries the design history. Then `src/inboxes.ts` for the actor
 wiring, and the tests — `tests/` is organised as one contract per file,
 and each file's header comment states the drift or defect it exists to

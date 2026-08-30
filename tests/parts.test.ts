@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
+import type { ActorRegistry } from '../src/actor'
 import { renderViewToString } from '../src/string-renderer'
-import type { UnitRegistry } from '../src/unit'
 import { Evaluator } from '../src/view-validator'
 
 /**
@@ -17,7 +17,7 @@ const evaluator = new Evaluator()
 const evaluate = (expr: unknown, data: Parameters<Evaluator['evaluate']>[1]) =>
 	evaluator.evaluate(expr, data)
 
-const units: UnitRegistry = {
+const units: ActorRegistry = {
 	'nav-menu': {
 		name: 'nav-menu',
 		view: {
@@ -67,7 +67,7 @@ test('a nested $use resolves under ITS OWN name, not the caller apostrophe-s', a
 })
 
 test('an explicit class survives beside the part class', async () => {
-	const withClass: UnitRegistry = {
+	const withClass: ActorRegistry = {
 		x: { name: 'x', view: { tag: 'div', part: 'body', class: 'stack' } }
 	}
 	const html = await renderViewToString(

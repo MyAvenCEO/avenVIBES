@@ -10,11 +10,12 @@
  * Nothing here knows about any particular brand or product. Tokens are injected
  * through the bundle's style, so the framework is the same wherever it runs.
  */
+
+import type { ActorInstance, SandboxHost } from './actor.js'
 import { wireInboxes } from './inboxes.js'
 import { MessageRouter } from './messages.js'
 import { StateStore } from './state-store.js'
-import type { UiBundle, UiEvent, VibeEngineOptions } from './types.js'
-import type { SandboxHost, UnitInstance } from './unit.js'
+import type { UiEvent, Vibe, VibeEngineOptions } from './types.js'
 import { ViewEngine } from './view-engine.js'
 
 export class VibeEngine {
@@ -25,10 +26,10 @@ export class VibeEngine {
 	private readonly router = new MessageRouter()
 	private readonly sandbox?: SandboxHost
 	private readonly icons?: import('./icons.js').IconRegistry
-	private instances = new Map<string, UnitInstance>()
+	private instances = new Map<string, ActorInstance>()
 	private readonly stateStore = new StateStore()
 	private shadowRoot: ShadowRoot | null = null
-	private bundle: UiBundle | null = null
+	private bundle: Vibe | null = null
 	private unsubState: (() => void) | null = null
 
 	constructor(options: VibeEngineOptions) {
@@ -39,7 +40,7 @@ export class VibeEngine {
 		this.icons = options.icons
 	}
 
-	async mount(bundle: UiBundle): Promise<void> {
+	async mount(bundle: Vibe): Promise<void> {
 		await this.unmount()
 		this.bundle = bundle
 		this.stateStore.set(bundle.state)
@@ -81,7 +82,7 @@ export class VibeEngine {
 	 * Per-instance actors, if they are ever needed, would register under the
 	 * path instead; the router does not care which.
 	 */
-	private async startInboxes(bundle: UiBundle): Promise<void> {
+	private async startInboxes(bundle: Vibe): Promise<void> {
 		const wired = await wireInboxes({
 			bundle,
 			router: this.router,
@@ -104,7 +105,7 @@ export class VibeEngine {
 		return this.stateStore.get()
 	}
 
-	getBundle(): UiBundle | null {
+	getBundle(): Vibe | null {
 		return this.bundle
 	}
 
@@ -143,6 +144,21 @@ export class VibeEngine {
 	}
 }
 
+export {
+	type ActorDef,
+	type ActorInterface,
+	type ActorRegistry,
+	actorsWithInbox,
+	actorsWithLogic,
+	checkPlacement,
+	expandUse,
+	type LayoutDef,
+	layoutClasses,
+	registryStyles,
+	type UseDef,
+	validateActor,
+	validateRegistry
+} from './actor.js'
 export { DOCS, type DocSection } from './docs.js'
 export {
 	type IconDef,
@@ -180,26 +196,11 @@ export { renderViewToString, type StringRenderOptions } from './string-renderer.
 export { validateStyleDef } from './style-validator.js'
 export type {
 	StyleDef,
-	UiBundle,
 	UiEvent,
+	Vibe,
 	ViewDef,
 	ViewNode
 } from './types.js'
-export {
-	checkPlacement,
-	expandUse,
-	type LayoutDef,
-	layoutClasses,
-	registryStyles,
-	type UnitDef,
-	type UnitInterface,
-	type UnitRegistry,
-	type UseDef,
-	unitsWithInbox,
-	unitsWithLogic,
-	validateRegistry,
-	validateUnit
-} from './unit.js'
 /**
  * The expression evaluator, and the reason it is exported.
  *

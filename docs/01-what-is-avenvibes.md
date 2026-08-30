@@ -62,16 +62,16 @@ assumed until you pick a renderer. Its main exports:
 - `renderViewToString` — the same walk, producing HTML text at build time
 - `Island` — attaches behaviour to prerendered markup
 - `MessageRouter`, `StateStore`, `Evaluator` — the machinery underneath
-- `validateUnit`, `checkPlacement`, `validateViewDef` — the contracts
+- `validateActor`, `checkPlacement`, `validateViewDef` — the contracts
 
-A vibe arrives as a `UiBundle`:
+A vibe arrives as a `Vibe`:
 
 ```ts
-type UiBundle = {
+type Vibe = {
 	view: ViewDef
 	style: StyleDef
 	state: Record<string, unknown>
-	units?: UnitRegistry
+	units?: ActorRegistry
 	messages?: MessageCatalog
 	name?: string
 	accepts?: Record<string, Record<string, string>>
@@ -79,7 +79,8 @@ type UiBundle = {
 ```
 
 `view` is the structure, `style` the tokens and rules, `state` the data
-the view reads, `units` the component library it may place, `messages`
+the view reads, `units` the actor library it may place (the field keeps
+its historical name in the data grammar, so shipped vibes stay valid), `messages`
 the locale's copy. `name` and `accepts` make the vibe itself addressable,
 which the section on actors explains.
 
@@ -88,7 +89,7 @@ which the section on actors explains.
 The sections build on each other in one direction:
 
 1. **Views** — the data language: tags, text, expressions, lists
-2. **Units** — reusable pieces with contracts: props, slots, variants
+2. **Actors** — reusable pieces with contracts: props, slots, variants
 3. **Styling** — tokens, the eight states, one theme source
 4. **Actors and messages** — how pieces talk without knowing each other
 5. **Delivery tiers** — static, island, sandboxed; what each costs

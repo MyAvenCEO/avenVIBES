@@ -43,7 +43,7 @@ import type { RenderData, StyleDef, ViewNode } from './types.js'
  * interface rather than the view, and passing something the unit never asked
  * for fails at mount instead of rendering `undefined` into the page.
  */
-export type UnitInterface = {
+export type ActorInterface = {
 	/** Accepted props, `name -> type hint`. The hint is documentation and a check. */
 	props?: Record<string, string>
 	/** Events this unit emits, `name -> payload shape`. */
@@ -92,11 +92,11 @@ export type LayoutDef = {
 }
 
 /** A unit: the whole of what a piece of interface is. */
-export type UnitDef = {
+export type ActorDef = {
 	name: string
 	/** Prose, for the docs surface that lists units. */
 	description?: string
-	interface?: UnitInterface
+	interface?: ActorInterface
 	layout?: LayoutDef
 	/** The structure. May contain `$use` references to other units. */
 	view: ViewNode
@@ -126,7 +126,7 @@ export type UnitDef = {
 }
 
 /** Name -> unit. What `$use` resolves against. */
-export type UnitRegistry = Record<string, UnitDef>
+export type ActorRegistry = Record<string, ActorDef>
 
 /* ── Placing one ────────────────────────────────────────────────────────── */
 
@@ -148,8 +148,8 @@ export type UseDef = {
 /* ── Checking ───────────────────────────────────────────────────────────── */
 
 /** Refuse a unit that cannot be rendered, naming everything wrong at once. */
-export function validateUnit(unit: unknown, at = 'unit'): asserts unit is UnitDef {
-	const u = unit as Partial<UnitDef> | null
+export function validateActor(unit: unknown, at = 'unit'): asserts unit is ActorDef {
+	const u = unit as Partial<ActorDef> | null
 	if (!u || typeof u !== 'object') throw new Error(`${at}: not an object`)
 	const problems: string[] = []
 	if (!u.name) problems.push('missing `name`')
@@ -177,9 +177,9 @@ export function validateUnit(unit: unknown, at = 'unit'): asserts unit is UnitDe
 }
 
 /** Refuse a registry containing a unit that cannot be rendered. */
-export function validateRegistry(registry: UnitRegistry): void {
+export function validateRegistry(registry: ActorRegistry): void {
 	for (const [name, unit] of Object.entries(registry)) {
-		validateUnit(unit, `unit "${name}"`)
+		validateActor(unit, `unit "${name}"`)
 		if (unit.name !== name)
 			throw new Error(`unit "${name}": its own \`name\` is "${unit.name}"; the two must match`)
 	}
@@ -196,7 +196,7 @@ export function validateRegistry(registry: UnitRegistry): void {
  * unit falls back to its default, the page looks plausible, and nothing says
  * why. The interface exists so that cannot happen.
  */
-export function checkPlacement(use: UseDef, unit: UnitDef): string[] {
+export function checkPlacement(use: UseDef, unit: ActorDef): string[] {
 	const problems: string[] = []
 	const declared = unit.interface ?? {}
 
@@ -285,10 +285,10 @@ function resolveParts(node: ViewNode, unitName: string): ViewNode {
 
 export function expandUse(
 	use: UseDef,
-	registry: UnitRegistry,
+	registry: ActorRegistry,
 	data: RenderData,
 	resolvedProps: Record<string, unknown>
-): { node: ViewNode; data: RenderData; unit: UnitDef } {
+): { node: ViewNode; data: RenderData; unit: ActorDef } {
 	const unit = registry[use.unit]
 	if (!unit) throw new Error(`no unit named "${use.unit}" in the registry`)
 
@@ -336,7 +336,7 @@ export function expandUse(
  * on where it is placed, which is the whole reason a design system can have a
  * stylesheet at all.
  */
-export function registryStyles(registry: UnitRegistry): Record<string, Decl> {
+export function registryStyles(registry: ActorRegistry): Record<string, Decl> {
 	const out: Record<string, Decl> = {}
 	for (const unit of Object.values(registry))
 		if (unit.styling) Object.assign(out, compileUnitStyling(unit.name, unit.styling))
@@ -357,7 +357,7 @@ export function registryStyles(registry: UnitRegistry): Record<string, Decl> {
  * behave identically wherever it runs, so it is written against a message
  * interface and never against a runtime.
  */
-export type UnitInstance = {
+export type ActorInstance = {
 	/** Deliver a message to this instance's inbox and get the next state back. */
 	send(event: { send: string; payload: Record<string, unknown> }): Promise<Record<string, unknown>>
 	/** Tear the instance down. */
@@ -373,10 +373,10 @@ export type SandboxHost = {
 	 * host can route or log by it.
 	 */
 	start(options: {
-		unit: UnitDef
+		unit: ActorDef
 		address: string
 		initialState: Record<string, unknown>
-	}): Promise<UnitInstance>
+	}): Promise<ActorInstance>
 }
 
 /**
@@ -386,20 +386,44 @@ export type SandboxHost = {
  * button that emits and never receives has nothing to run, and starting a
  * QuickJS context per button would make the model uniform and the page slow.
  */
-export function unitsWithLogic(registry: UnitRegistry): UnitDef[] {
+export function actorsWithLogic(registry: ActorRegistry): ActorDef[] {
 	return Object.values(registry).filter((unit) => Boolean(unit.logic))
 }
 
 /**
  * Which units in a registry get an inbox: everything that declares `accepts`.
  *
- * Distinct from `unitsWithLogic` on purpose, because the two questions were
+ * Distinct from `actorsWithLogic` on purpose, because the two questions were
  * fused and the fusion was the bug: reception was gated on the sandbox, so on
  * a surface with no QuickJS configured NO unit could receive a message at all.
  * An inbox costs a Map entry; a sandbox costs a context. A unit is an actor —
  * an address with a declared inbox — whether or not anything expensive serves
  * that inbox. The UNIT is the class; the placed instance is the actor.
  */
-export function unitsWithInbox(registry: UnitRegistry): UnitDef[] {
+export function actorsWithInbox(registry: ActorRegistry): ActorDef[] {
 	return Object.values(registry).filter((unit) => Boolean(unit.interface?.accepts))
 }
+
+/* ── The old unit-taxonomy names, kept as aliases ───────────────────────────
+ *
+ * The model was always actors — an address, a declared inbox, props in and
+ * events out — but the types said "unit", which read as a THIRD concept beside
+ * unit-the-class and actor-the-instance. The taxonomy now says it plainly:
+ * an `ActorDef` is the class, an `ActorInstance` is the running actor, and
+ * `ActorInterface` is the contract between them and everyone else. These
+ * aliases keep pre-rename consumers compiling; new code uses the real names.
+ */
+/** @deprecated use ActorDef */
+export type UnitDef = ActorDef
+/** @deprecated use ActorInterface */
+export type UnitInterface = ActorInterface
+/** @deprecated use ActorRegistry */
+export type UnitRegistry = ActorRegistry
+/** @deprecated use ActorInstance */
+export type UnitInstance = ActorInstance
+/** @deprecated use actorsWithLogic */
+export const unitsWithLogic = actorsWithLogic
+/** @deprecated use actorsWithInbox */
+export const unitsWithInbox = actorsWithInbox
+/** @deprecated use validateActor */
+export const validateUnit = validateActor

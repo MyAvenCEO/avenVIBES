@@ -23,19 +23,19 @@ A bundle's `style.tokens` is a nested map of named values:
 
 The style engine flattens it into CSS custom properties
 (`--color-action-primary`, `--radius-control`) on the vibe's root. Every
-declaration in a unit's styling references tokens by interpolation:
+declaration in an actor's styling references tokens by interpolation:
 
 ```json
 { "background": "{color.action.primary}" }
 ```
 
-Switching brand or theme means editing the token source once. A unit that
+Switching brand or theme means editing the token source once. An actor that
 hardcoded `#295BFF` would keep it through the rebrand — which is exactly
-why units never see raw values, only names.
+why actors never see raw values, only names.
 
 ## `styling`: base, parts, variants, states
 
-A unit's look is declared in `styling`, a structure the engine compiles
+An actor's look is declared in `styling`, a structure the engine compiles
 rather than CSS the author writes:
 
 - `base` — the resting look.
@@ -45,16 +45,16 @@ rather than CSS the author writes:
 - `variants` — named axes of variation: `variant: primary | danger`,
   `size: sm | lg`. Compiled to modifier classes (`btn--danger`,
   `btn--size-lg`). The placement chooses options; `checkPlacement`
-  rejects an axis or option the unit never declared.
+  rejects an axis or option the actor never declared.
 - `states` — per-state overrides, described next.
-- `keyframes` and `reducedMotion` — a unit that animates ships its own
+- `keyframes` and `reducedMotion` — an actor that animates ships its own
   keyframes and must say what it does under
   `prefers-reduced-motion: reduce`.
 
 `compileUnitStyling` (in `src/states.ts`) turns this into the flat
 components map the style engine consumes, and `registryStyles` does it
 once for a whole registry — once per vibe, not per instance, because a
-unit's CSS does not depend on where it is placed. That property is the
+actor's CSS does not depend on where it is placed. That property is the
 whole reason a design system can have a stylesheet at all.
 
 ## The eight states
@@ -64,7 +64,7 @@ every state they can be in. The engine names eight:
 
 default, hover, focus, active, disabled, loading, error, selected.
 
-Four are required the moment a unit says `"interactive": true` — hover,
+Four are required the moment an actor says `"interactive": true` — hover,
 focus, active, disabled (`REQUIRED_INTERACTIVE_STATES`). The other three
 apply where they mean something: `loading` for async actions, `error` for
 inputs, `selected` for selectable things.
@@ -95,16 +95,16 @@ an action in flight must not read as unavailable.
 The styling compiler validates before it compiles, and its errors come
 from real defects:
 
-- An unknown `styling` key is an error, because twelve units were once
+- An unknown `styling` key is an error, because twelve actors were once
   written with `parts`, `keyframes` and `reducedMotion` against a
   compiler that had none of them — and every one compiled cleanly while
   silently emitting half its CSS.
-- A unit that animates without declaring `reducedMotion` is an error,
+- An actor that animates without declaring `reducedMotion` is an error,
   because an entrance animation is often the only thing that reveals the
   content, and a blanket `animation: none` from a user's OS setting can
-  leave the element invisible. The right answer differs per unit — a
+  leave the element invisible. The right answer differs per actor — a
   spinner slows, a skeleton stops pulsing, a drawer still moves — so it
-  has to be said per unit.
+  has to be said per actor.
 
 ## Raw CSS stays out
 

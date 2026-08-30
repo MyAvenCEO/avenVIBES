@@ -190,7 +190,7 @@ const architectureView = (): ViewDef =>
 
 		el('section', 'section', [
 			t('h2', 'h2', 'The bundle'),
-			code(`UiBundle
+			code(`Vibe
 ├── view    ViewDef      the structure, as data
 ├── style   StyleDef     tokens, components, selectors
 ├── state   object       what the view renders against

@@ -30,15 +30,15 @@ A view node emits with `$on`:
 
 `send` is the message name, `payload` its data (expressions allowed —
 `"$value"` reads the input that fired the event), and `to` is the
-address. The unit declares what it emits in `interface.events`, so a
-reader learns the unit's outputs from its contract, not from spelunking
+address. The actor declares what it emits in `interface.events`, so a
+reader learns the actor's outputs from its contract, not from spelunking
 its view.
 
 ## Addresses: four symbolic forms
 
 `to` resolves at delivery time via `resolveAddress`:
 
-- `$self` — the unit that emitted it, for driving its own state
+- `$self` — the actor that emitted it, for driving its own state
 - `$parent` — the composite that placed it
 - `$host` — the surface outside the vibe, for app-level concerns
 - any other string — a named inbox, including a sibling's
@@ -47,15 +47,15 @@ Absent means `$host`, which is how every view written before addresses
 existed keeps working unchanged.
 
 The rule that keeps this from becoming spaghetti is not a restriction on
-who may talk to whom — it is *where the wiring lives*. A reusable unit
+who may talk to whom — it is *where the wiring lives*. A reusable actor
 never names a concrete inbox inside its own definition; `to` is supplied
-by whoever **places** the unit. A button does not know it belongs to a
+by whoever **places** the actor. A button does not know it belongs to a
 pricing page. The pricing page's composition says so, and the whole
 topology is readable in that one file.
 
 ## Messages in: `accepts`, the declarative handler
 
-The mirror of `events` is `accepts` — the messages a unit receives:
+The mirror of `events` is `accepts` — the messages an actor receives:
 
 ```json
 {
@@ -67,9 +67,9 @@ The mirror of `events` is `accepts` — the messages a unit receives:
 }
 ```
 
-Declaring `accepts` registers an inbox for the unit at mount. And where
-the unit declares no `logic`, the engine serves the inbox **itself**: the
-payload merges into the unit's state slice. No code runs anywhere.
+Declaring `accepts` registers an inbox for the actor at mount. And where
+the actor declares no `logic`, the engine serves the inbox **itself**: the
+payload merges into the actor's state slice. No code runs anywhere.
 
 Read that again, because it is the heart of the model: a menu toggle is a
 *complete behaviour* expressed as two pieces of data — a button that
@@ -124,11 +124,11 @@ host would have to know the island's internals.
 
 `wireInboxes` (shared by `VibeEngine` and `Island`) registers:
 
-- an inbox per unit declaring `accepts` — cost: a Map entry
-- a sandbox instance per unit declaring `logic` — cost: a real runtime
+- an inbox per actor declaring `accepts` — cost: a Map entry
+- a sandbox instance per actor declaring `logic` — cost: a real runtime
 
 The two used to be fused — reception gated on the sandbox — and the
 fusion was a bug worth remembering: on a surface with no QuickJS
-configured, *no* unit could receive a message at all. An address is
-cheap; a runtime is expensive; a unit is an actor whether or not
+configured, *no* actor could receive a message at all. An address is
+cheap; a runtime is expensive; an actor is an actor whether or not
 anything expensive serves its inbox.

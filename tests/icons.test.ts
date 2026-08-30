@@ -198,3 +198,29 @@ suite('insetting the figure inside its backing', () => {
 		}
 	})
 })
+
+suite('filled duotone geometry (Solar and kin)', () => {
+	test('fillRule renders and opacity is optional on object paths', () => {
+		const registry = {
+			magnifier: {
+				viewBox: '0 0 24 24',
+				paths: [
+					{ d: 'M2 2h20v20H2Z', opacity: 0.5 },
+					{ d: 'M4 4h4v4H4Z', fillRule: 'evenodd' as const }
+				]
+			}
+		}
+		validateIconRegistry(registry)
+		const svg = renderIcon('magnifier', registry)
+		expect(svg).toContain('opacity="0.5"')
+		expect(svg).toContain('fill-rule="evenodd"')
+	})
+
+	test('a bad fillRule is refused', () => {
+		expect(() =>
+			validateIconRegistry({
+				x: { viewBox: '0 0 24 24', paths: [{ d: 'M0 0h1', fillRule: 'inherit' }] }
+			} as never)
+		).toThrow('fillRule')
+	})
+})

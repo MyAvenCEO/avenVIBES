@@ -1,6 +1,6 @@
 {
 	"name": "@myavenceo/aven-vibes",
-	"version": "0.8.2",
+	"version": "0.9.0",
 	"type": "module",
 	"description": "A vibe is a complete little app — view, style, state and logic — rendered from data into an isolated shadow root, or to a string at build time.",
 	"license": "MIT",
@@ -27,7 +27,7 @@
 		"LICENSE"
 	],
 	"scripts": {
-		"build": "tsc -p tsconfig.json",
+		"build": "bun scripts/build-docs.ts && tsc -p tsconfig.json",
 		"test": "bun test ./tests",
 		"lint": "bunx biome check .",
 		"format": "bunx biome format --write .",

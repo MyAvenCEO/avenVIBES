@@ -18,7 +18,7 @@ Start with the card again, this time with real state behind it:
 	},
 	"state": {
 		"title": "Universal inboxes",
-		"summary": "Every unit with a contract is an addressable actor."
+		"summary": "Every actor with a contract has an addressable inbox."
 	}
 }
 ```
@@ -53,8 +53,8 @@ prefixes, implemented in the `Evaluator` (`src/view-validator.ts`):
 
 - `$name` — read `name` from the current **state**. Dots reach deeper:
   `$user.email`.
-- `$props.label` — read `label` from the **props** this unit was placed
-  with. Props are a separate scope from state on purpose, so a unit can
+- `$props.label` — read `label` from the **props** this actor was placed
+  with. Props are a separate scope from state on purpose, so an actor can
   never accidentally read a parent value that happens to share a name.
 - `$$field` — read `field` from the **current list item**, inside a
   `$each` loop.
@@ -90,8 +90,8 @@ scope is added, not swapped.
 ## Copy with `$t`
 
 A view never carries display strings directly. This looks like tidiness
-and is actually internationalisation: the same unit has to render in every
-locale, and a string baked into a view is a unit that only works in one.
+and is actually internationalisation: the same actor has to render in every
+locale, and a string baked into a view is an actor that only works in one.
 
 ```json
 { "tag": "button", "text": { "$t": "pricing.cta" } }

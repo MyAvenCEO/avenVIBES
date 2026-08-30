@@ -1,8 +1,8 @@
+import { type ActorRegistry, expandUse } from './actor.js'
 import { type IconRegistry, renderIcon } from './icons.js'
 import { type MessageCatalog, translate } from './messages.js'
 import { BOOLEAN_ATTRS, SAFE_TAGS, sanitizeAttributeWhitelist } from './security.js'
 import type { RenderData, ViewDef, ViewNode } from './types.js'
-import { expandUse, type UnitRegistry } from './unit.js'
 import { renderMarkdown } from './view-engine.js'
 
 /**
@@ -70,7 +70,7 @@ export interface StringRenderOptions {
 	/** Resolves `{state.x}` style expressions — supply the engine's evaluator. */
 	evaluate: Evaluate
 	/** Units a `$use` may place. Must be the same registry the DOM renderer uses. */
-	units?: UnitRegistry
+	units?: ActorRegistry
 	/** Icons a `$icon` may draw. Must be the same registry the DOM renderer uses. */
 	icons?: IconRegistry
 	/** The locale's copy, for `$t`. */
