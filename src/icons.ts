@@ -168,7 +168,24 @@ export function renderIcon(
 function figure(icon: IconDef): string {
 	const draw = (path: IconPath) => {
 		if (typeof path === 'string') return `<path d="${path}"/>`
-		const paint = path.fill ? ' fill="currentColor" stroke="none"' : ''
+		/*
+		 * A duotone's SECONDARY layer is paintable, not just dimmable.
+		 *
+		 * Both layers took `currentColor` and separated by opacity alone, which
+		 * is one colour at two strengths — and at 50% of a near-black brand ink
+		 * that reads as a heavy grey slab rather than a tint. A brand wants the
+		 * backing in ITS OWN quieter colour, so a path carrying `opacity` (the
+		 * marker of a secondary layer) fills from `--icon-tint` when a surface
+		 * sets one, and falls back to `currentColor` when nothing does. No
+		 * caller text reaches the output: the variable name is fixed here and
+		 * the fallback is the behaviour this always had.
+		 */
+		const secondary = typeof path.opacity === 'number'
+		const paint = path.fill
+			? ' fill="currentColor" stroke="none"'
+			: secondary
+				? ' fill="var(--icon-tint, currentColor)"'
+				: ''
 		/* `fill-rule` because filled duotone sets (Solar and kin) cut their
 		   counters with evenodd — a magnifier without it renders as a solid
 		   disc, its hole silently filled. Emitted only when declared, and only
