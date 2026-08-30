@@ -140,6 +140,7 @@ export class VibeEngine {
 	}
 }
 
+export { DOCS, type DocSection } from './docs.js'
 export {
 	type IconDef,
 	type IconPath,
@@ -150,6 +151,7 @@ export {
 } from './icons.js'
 export { type InboxWiringOptions, type WiredInboxes, wireInboxes } from './inboxes.js'
 export { Island, type IslandOptions } from './island.js'
+export { type MarkdownDocOptions, renderMarkdownDoc, type TocEntry } from './markdown.js'
 export {
 	type Address,
 	HOST,
