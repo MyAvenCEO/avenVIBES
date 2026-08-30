@@ -42,12 +42,15 @@ export type IslandOptions = {
 	onEvent?: (event: UiEvent) => void
 	/** Supplied only when a unit on this island declares `logic`. */
 	sandbox?: SandboxHost
+	/** Icons the view's `$icon` nodes draw — required for any re-render to keep its glyphs. */
+	icons?: import('./icons.js').IconRegistry
 }
 
 export class Island {
 	private readonly container: HTMLElement
 	private readonly onEvent?: (event: UiEvent) => void
 	private readonly sandbox?: SandboxHost
+	private readonly icons?: import('./icons.js').IconRegistry
 	private readonly viewEngine = new ViewEngine()
 	private readonly router = new MessageRouter()
 	private readonly stateStore = new StateStore()
@@ -59,6 +62,7 @@ export class Island {
 		this.container = options.container
 		this.onEvent = options.onEvent
 		this.sandbox = options.sandbox
+		this.icons = options.icons
 	}
 
 	/**
@@ -76,6 +80,7 @@ export class Island {
 		this.viewEngine.configure({
 			onEvent: this.onEvent,
 			units: bundle.units,
+			icons: this.icons,
 			messages: bundle.messages,
 			router: this.router
 		})

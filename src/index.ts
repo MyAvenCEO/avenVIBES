@@ -24,6 +24,7 @@ export class VibeEngine {
 	private readonly viewEngine = new ViewEngine()
 	private readonly router = new MessageRouter()
 	private readonly sandbox?: SandboxHost
+	private readonly icons?: import('./icons.js').IconRegistry
 	private instances = new Map<string, UnitInstance>()
 	private readonly stateStore = new StateStore()
 	private shadowRoot: ShadowRoot | null = null
@@ -35,6 +36,7 @@ export class VibeEngine {
 		this.onEvent = options.onEvent
 		this.containerName = options.containerName ?? 'aven-vibes'
 		this.sandbox = options.sandbox
+		this.icons = options.icons
 	}
 
 	async mount(bundle: UiBundle): Promise<void> {
@@ -45,6 +47,7 @@ export class VibeEngine {
 			onEvent: this.onEvent,
 			containerName: this.containerName,
 			units: bundle.units,
+			icons: this.icons,
 			messages: bundle.messages,
 			router: this.router
 		})
