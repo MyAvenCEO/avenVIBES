@@ -101,4 +101,15 @@ export type VibeEngineOptions = {
 	 * engine must not require a platform it cannot provide.
 	 */
 	sandbox?: import('./unit.js').SandboxHost
+	/**
+	 * Icons a view's `$icon` may draw.
+	 *
+	 * Without this, an icon-bearing view rendered fine at build time (the
+	 * string renderer takes a registry) and then lost every glyph on its first
+	 * client re-render: `renderIcon` against the empty default registry
+	 * returns '' rather than throwing, so the hamburger simply vanished. A
+	 * silent empty string is the exact failure mode this engine keeps
+	 * refusing elsewhere — the registry now travels with the options.
+	 */
+	icons?: import('./icons.js').IconRegistry
 }

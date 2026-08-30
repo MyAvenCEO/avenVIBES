@@ -190,3 +190,51 @@ describe('inbox wiring without any sandbox', () => {
 		}
 	})
 })
+
+describe('icons survive a re-render', () => {
+	test('an $icon node keeps its glyph after the state-driven subtree swap', async () => {
+		const { renderViewToString, Evaluator, Island: IslandCls } = await import('../src/index.js')
+		const icons = {
+			menu: { viewBox: '0 0 24 24', stroke: true, paths: ['M4 7h16M4 12h16M4 17h16'] }
+		}
+		const view = {
+			tag: 'div',
+			attrs: { 'data-open': '$open' },
+			children: [
+				{
+					tag: 'button',
+					attrs: { type: 'button', 'aria-expanded': '$open' },
+					$icon: { name: 'menu' },
+					$on: { click: { send: 'set-open', to: 'm', payload: { open: true } } }
+				}
+			]
+		}
+		const evaluator = new Evaluator()
+		const html = await renderViewToString(
+			view,
+			{ open: false },
+			{
+				evaluate: (expr, data) => evaluator.evaluate(expr, data),
+				icons
+			}
+		)
+		expect(html).toContain('<svg')
+		const container = document.createElement('div')
+		container.innerHTML = html
+		document.body.appendChild(container)
+		/* Without the passthrough this island re-renders the button and
+		   `renderIcon` against the empty default registry returns '' — the
+		   hamburger silently vanishes on the first click. */
+		const island = new IslandCls({ container, icons })
+		await island.hydrate({
+			view,
+			state: { open: false },
+			name: 'm',
+			accepts: { 'set-open': { open: 'boolean' } }
+		})
+		container.querySelector('button')?.click()
+		await Bun.sleep(0)
+		expect(container.querySelector('button')?.getAttribute('aria-expanded')).toBe('true')
+		expect(container.querySelector('button svg')).not.toBeNull()
+	})
+})
