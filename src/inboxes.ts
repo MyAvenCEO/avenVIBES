@@ -33,13 +33,14 @@
  * applied. A typo'd `send` that silently patches nothing is the JSON-UI
  * equivalent of the ignored prop, and it is caught the same way — loudly.
  */
+
+import type { ActorInstance, SandboxHost } from './actor.js'
+import { actorsWithInbox } from './actor.js'
 import type { MessageRouter } from './messages.js'
-import type { UiBundle } from './types.js'
-import type { SandboxHost, UnitInstance } from './unit.js'
-import { unitsWithInbox } from './unit.js'
+import type { Vibe } from './types.js'
 
 export type InboxWiringOptions = {
-	bundle: UiBundle
+	bundle: Vibe
 	router: MessageRouter
 	sandbox?: SandboxHost
 	/** Patch a slice of the vibe state; the engine's own `updateState`. */
@@ -50,7 +51,7 @@ export type InboxWiringOptions = {
 
 /** What `wireInboxes` started, so the caller can tear it down symmetrically. */
 export type WiredInboxes = {
-	instances: Map<string, UnitInstance>
+	instances: Map<string, ActorInstance>
 }
 
 /** Does the contract name this message? The refusal itself goes through `router.refuse`. */
@@ -60,7 +61,7 @@ function accepted(contract: Record<string, Record<string, string>>, send: string
 
 export async function wireInboxes(options: InboxWiringOptions): Promise<WiredInboxes> {
 	const { bundle, router, sandbox, updateState, getState } = options
-	const instances = new Map<string, UnitInstance>()
+	const instances = new Map<string, ActorInstance>()
 
 	/* The root is an actor too. A menu island whose state holds `open` must be
 	   addressable without the host learning its internals. */
@@ -76,7 +77,7 @@ export async function wireInboxes(options: InboxWiringOptions): Promise<WiredInb
 		})
 	}
 
-	for (const unit of unitsWithInbox(bundle.units ?? {})) {
+	for (const unit of actorsWithInbox(bundle.units ?? {})) {
 		const contract = unit.interface?.accepts ?? {}
 
 		if (unit.logic) {

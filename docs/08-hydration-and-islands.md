@@ -32,7 +32,7 @@ const attached = await island.hydrate(bundle)
 `hydrate` does four things, in order:
 
 1. seeds the `StateStore` with the bundle's state
-2. wires inboxes — the same `wireInboxes` a `VibeEngine` uses, so a unit
+2. wires inboxes — the same `wireInboxes` a `VibeEngine` uses, so an actor
    that works in a vibe works on an island unchanged
 3. **re-walks the definition**: for every node carrying `$on`, it
    computes the `data-aven-path` that node must have landed at, queries
@@ -41,7 +41,7 @@ const attached = await island.hydrate(bundle)
 
 Step 3 is the whole trick. It creates nothing, diffs nothing, and never
 touches text — the markup is already correct, because build and client
-walked one definition. `$use` expands with the unit's own state and
+walked one definition. `$use` expands with the actor's own state and
 resolved props, `$each` re-evaluates its items against state, slots walk
 the children the caller passed: the hydration walk mirrors the render
 walk exactly, minus the rendering.

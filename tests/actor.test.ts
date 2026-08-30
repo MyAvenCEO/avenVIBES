@@ -6,24 +6,24 @@
  * inbox it was addressed to rather than the one it happens to sit under.
  */
 import { expect, describe as suite, test } from 'bun:test'
+import type { ActorRegistry } from '../src/actor.js'
+import {
+	actorsWithLogic,
+	checkPlacement,
+	layoutClasses,
+	validateActor,
+	validateRegistry
+} from '../src/actor.js'
 import { HOST, MessageRouter, resolveAddress, translate } from '../src/messages.js'
 import { compileUnitStyling, STATE_SELECTORS } from '../src/states.js'
 import { renderViewToString } from '../src/string-renderer.js'
-import type { UnitRegistry } from '../src/unit.js'
-import {
-	checkPlacement,
-	layoutClasses,
-	unitsWithLogic,
-	validateRegistry,
-	validateUnit
-} from '../src/unit.js'
 import { Evaluator } from '../src/view-validator.js'
 
 const evaluator = new Evaluator()
 const evaluate = (expression: unknown, data: never) => evaluator.evaluate(expression, data)
 
 /** A leaf, a composite that places it, and a vibe that places the composite. */
-const registry: UnitRegistry = {
+const registry: ActorRegistry = {
 	button: {
 		name: 'button',
 		interface: { props: { label: 'string' }, events: { press: { id: 'string' } } },
@@ -76,7 +76,7 @@ suite('the registry', () => {
 	})
 
 	test('refuses a unit with no view', () => {
-		expect(() => validateUnit({ name: 'x' })).toThrow('missing `view`')
+		expect(() => validateActor({ name: 'x' })).toThrow('missing `view`')
 	})
 })
 
@@ -124,7 +124,7 @@ suite('rendering a nest', () => {
 	})
 
 	test("a caller's state is NOT visible inside the unit", async () => {
-		const leaky: UnitRegistry = {
+		const leaky: ActorRegistry = {
 			leaky: { name: 'leaky', interface: {}, view: { tag: 'p', text: '$secret' } }
 		}
 		const html = await renderViewToString(
@@ -294,7 +294,7 @@ suite('variants and the eight states', () => {
 
 	test('an interactive unit missing a required state is refused', () => {
 		const bad = { ...button, styling: { ...button.styling, states: { hover: { opacity: '0.9' } } } }
-		expect(() => validateUnit(bad)).toThrow('declares no `focus` state')
+		expect(() => validateActor(bad)).toThrow('declares no `focus` state')
 	})
 
 	test('a focus state that draws no ring is refused', () => {
@@ -305,7 +305,7 @@ suite('variants and the eight states', () => {
 				states: { ...button.styling.states, focus: { background: 'red' } }
 			}
 		}
-		expect(() => validateUnit(bad)).toThrow('draws no ring')
+		expect(() => validateActor(bad)).toThrow('draws no ring')
 	})
 
 	test('loading may not simply reuse disabled — in-flight is not unavailable', () => {
@@ -316,12 +316,12 @@ suite('variants and the eight states', () => {
 				states: { ...button.styling.states, loading: { opacity: '0.5' } }
 			}
 		}
-		expect(() => validateUnit(bad)).toThrow('must not read as unavailable')
+		expect(() => validateActor(bad)).toThrow('must not read as unavailable')
 	})
 
 	test('a non-interactive unit is not held to the contract', () => {
 		expect(() =>
-			validateUnit({ name: 'card', view: { tag: 'div' }, styling: { base: { padding: '1rem' } } })
+			validateActor({ name: 'card', view: { tag: 'div' }, styling: { base: { padding: '1rem' } } })
 		).not.toThrow()
 	})
 
@@ -358,11 +358,11 @@ suite('sandbox lifecycle', () => {
 			button: { name: 'button', view: { tag: 'button' } },
 			todo: { name: 'todo', view: { tag: 'ul' }, logic: 'export default {}' }
 		}
-		expect(unitsWithLogic(registry as never).map((u) => u.name)).toEqual(['todo'])
+		expect(actorsWithLogic(registry as never).map((u) => u.name)).toEqual(['todo'])
 	})
 
 	test('a registry of purely presentational units needs no sandbox at all', () => {
-		expect(unitsWithLogic({ a: { name: 'a', view: { tag: 'p' } } } as never)).toEqual([])
+		expect(actorsWithLogic({ a: { name: 'a', view: { tag: 'p' } } } as never)).toEqual([])
 	})
 })
 

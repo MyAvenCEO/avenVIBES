@@ -11,7 +11,7 @@ itself*.
 
 The string renderer runs at build time and writes finished HTML into the
 page. No JavaScript ships. A vibe whose view has no `$on` handlers and
-whose units declare no `accepts` and no `logic` is purely presentational
+whose actors declare no `accepts` and no `logic` is purely presentational
 — render it once, ship the text, done.
 
 This is most of a marketing site: heroes, feature grids, footers,
@@ -41,11 +41,11 @@ counter-island
 
 ## Tier 2: sandboxed logic
 
-A unit that declares `logic` carries real behaviour — branching,
+An actor that declares `logic` carries real behaviour — branching,
 validation, computation — as source code the engine itself never runs.
 The surface supplies a `SandboxHost`; on desktop that is QuickJS inside
 a Tauri plugin, in the browser a worker. Messages go in, the next state
-comes out, and the unit's code cannot reach the DOM, the network or the
+comes out, and the actor's code cannot reach the DOM, the network or the
 page around it.
 
 Tier 2 is for the checkout, the configurator, the name-availability
@@ -56,13 +56,13 @@ check — places where the declarative merge is not enough.
 You never annotate a vibe with its tier. You read it off the definition:
 
 - Any `$on` in the view? If no: tier 0.
-- Any unit (or the root) declaring `logic`? If yes: tier 2.
+- Any actor (or the root) declaring `logic`? If yes: tier 2.
 - Otherwise: tier 1.
 
 Because the definition is data, a build tool can walk it and make this
 decision mechanically — emit static HTML for everything, ship hydration
 only where handlers exist, and boot a sandbox only where `logic`
-demands one. `unitsWithLogic` and `unitsWithInbox` in `src/unit.ts` are
+demands one. `actorsWithLogic` and `actorsWithInbox` in `src/actor.ts` are
 exactly these questions, asked of a registry.
 
 ## Why this is safe for SEO

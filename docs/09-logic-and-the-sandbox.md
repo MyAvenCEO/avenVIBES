@@ -2,12 +2,12 @@
 
 A vending machine takes a coin and a button press, and hands out a can.
 You do not get to reach inside it, and it does not get to reach into
-your pockets. That is the deal a unit's `logic` gets: messages in, next
+your pockets. That is the deal an actor's `logic` gets: messages in, next
 state out, and no hands through the glass in either direction.
 
 ## Behaviour as data
 
-A unit that needs real behaviour — branching, validation, computation —
+An actor that needs real behaviour — branching, validation, computation —
 declares it as `logic`: a string of source code carried in the
 definition, exactly as the view is carried as JSON.
 
@@ -27,9 +27,9 @@ are all data, so a whole vibe can be stored in a database, sent over a
 wire, authored by a tool, reviewed as text — and run without being
 trusted.
 
-One rule guards the door: `validateUnit` rejects a unit that declares
+One rule guards the door: `validateActor` rejects an actor that declares
 `logic` without `interface.accepts`. Logic with no inbox contract is an
-actor nobody can talk to on purpose — almost always a unit written
+actor nobody can talk to on purpose — almost always an actor written
 before `accepts` existed — and refusing it at validation turns a silent
 dead letterbox into a build error with a named fix.
 
@@ -42,13 +42,13 @@ inability is the design. The surface supplies a `SandboxHost`:
 ```ts
 type SandboxHost = {
 	start(options: {
-		unit: UnitDef
+		unit: ActorDef
 		address: string
 		initialState: Record<string, unknown>
-	}): Promise<UnitInstance>
+	}): Promise<ActorInstance>
 }
 
-type UnitInstance = {
+type ActorInstance = {
 	send(event: {
 		send: string
 		payload: Record<string, unknown>
@@ -60,22 +60,22 @@ type UnitInstance = {
 That is the entire contract: a host starts an instance, and an instance
 answers `send` and `dispose`. The engine drives it and nothing else. On
 desktop the host is QuickJS inside a Tauri plugin; in the browser it is
-a worker; in a test it is ten lines of TypeScript. A unit's logic must
+a worker; in a test it is ten lines of TypeScript. An actor's logic must
 behave identically wherever it runs, so it is written against a message
 interface and never against a runtime — the indirection is the point
 rather than a compromise.
 
 ## What a message round-trip looks like
 
-When a message arrives at a logic-bearing unit's inbox (wired by
+When a message arrives at a logic-bearing actor's inbox (wired by
 `wireInboxes`):
 
 1. the contract check — a `send` the `accepts` clause does not name is
    refused before any code runs
 2. `instance.send({ send, payload })` crosses into the sandbox
 3. the logic computes and returns the next state
-4. the reply **replaces that unit's state slice** — `{ [unit.name]:
-   next }` — and nothing else. A unit's logic owns its own state; it has
+4. the reply **replaces that actor's state slice** — `{ [actor.name]:
+   next }` — and nothing else. An actor's logic owns its own state; it has
    no way to write anyone else's.
 
 Compare the declarative tier, where the payload *merges* into the slice.

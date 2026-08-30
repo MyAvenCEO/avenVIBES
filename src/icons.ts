@@ -32,7 +32,9 @@
  * paths are still `currentColor` — duotone here is two opacities of one
  * colour, never two colours, because two colours cannot be themed.
  */
-export type IconPath = string | { d: string; opacity: number; fill?: boolean }
+export type IconPath =
+	| string
+	| { d: string; opacity?: number; fill?: boolean; fillRule?: 'evenodd' | 'nonzero' }
 
 /** One icon: the box its geometry is drawn in, and the geometry. */
 export type IconDef = {
@@ -104,11 +106,16 @@ export function validateIcon(name: string, icon: unknown): asserts icon is IconD
 				problems.push(`path ${n} is not path geometry`)
 			if (typeof path === 'object' && path !== null) {
 				const o = (path as { opacity?: unknown }).opacity
-				if (typeof o !== 'number' || !(o >= 0 && o <= 1))
+				/* Optional now: a filled duotone set's object paths may carry only
+				   a fill-rule, with the layer tint coming from opacity elsewhere. */
+				if (o !== undefined && (typeof o !== 'number' || !(o >= 0 && o <= 1)))
 					problems.push(`path ${n}: \`opacity\` must be a number from 0 to 1`)
 				const f = (path as { fill?: unknown }).fill
 				if (f !== undefined && typeof f !== 'boolean')
 					problems.push(`path ${n}: \`fill\` must be a boolean`)
+				const r = (path as { fillRule?: unknown }).fillRule
+				if (r !== undefined && r !== 'evenodd' && r !== 'nonzero')
+					problems.push(`path ${n}: \`fillRule\` must be "evenodd" or "nonzero"`)
 			}
 		})
 	if (i.inset !== undefined && (typeof i.inset !== 'number' || !(i.inset >= 0 && i.inset <= 0.4)))
@@ -162,7 +169,13 @@ function figure(icon: IconDef): string {
 	const draw = (path: IconPath) => {
 		if (typeof path === 'string') return `<path d="${path}"/>`
 		const paint = path.fill ? ' fill="currentColor" stroke="none"' : ''
-		return `<path d="${path.d}" opacity="${path.opacity}"${paint}/>`
+		/* `fill-rule` because filled duotone sets (Solar and kin) cut their
+		   counters with evenodd — a magnifier without it renders as a solid
+		   disc, its hole silently filled. Emitted only when declared, and only
+		   from the validated union, never caller text. */
+		const rule = path.fillRule ? ` fill-rule="${path.fillRule}"` : ''
+		const alpha = typeof path.opacity === 'number' ? ` opacity="${path.opacity}"` : ''
+		return `<path d="${path.d}"${alpha}${paint}${rule}/>`
 	}
 	const inset = typeof icon.inset === 'number' && icon.inset > 0 ? icon.inset : 0
 	if (!inset) return icon.paths.map(draw).join('')

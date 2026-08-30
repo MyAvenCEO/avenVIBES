@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
+import { type ActorRegistry, expandUse } from './actor.js'
 import { type IconRegistry, renderIcon } from './icons.js'
 import { HOST, type MessageCatalog, MessageRouter, resolveAddress, translate } from './messages.js'
 import {
@@ -11,7 +12,6 @@ import {
 } from './security.js'
 import { StyleEngine } from './style-engine.js'
 import type { RenderData, StyleDef, UiEvent, UiEventDef, ViewDef, ViewNode } from './types.js'
-import { expandUse, type UnitRegistry } from './unit.js'
 import { Evaluator, validateViewDef } from './view-validator.js'
 
 /**
@@ -49,7 +49,7 @@ export type ViewEngineOptions = {
 	onEvent?: (event: UiEvent) => void
 	containerName?: string
 	/** Units a `$use` may place. */
-	units?: UnitRegistry
+	units?: ActorRegistry
 	/** Icons a `$icon` may draw. */
 	icons?: IconRegistry
 	/** The locale's copy, for `$t`. */
@@ -70,7 +70,7 @@ export class ViewEngine {
 	private onEvent?: (event: UiEvent) => void
 	private containerName = 'aven-ui'
 	private currentState: Record<string, unknown> = {}
-	private units: UnitRegistry = {}
+	private units: ActorRegistry = {}
 	private icons: IconRegistry = {}
 	private messages: MessageCatalog = {}
 	private router = new MessageRouter()

@@ -16,7 +16,7 @@ Both renderers make the same decisions at every node:
 - the same structural precedence: `$icon`, then `$use`, then
   `$children`, then `$each`, then `children`
 - the same two-scope rule for `$use`: props resolve in the caller's
-  scope, the unit renders in its own
+  scope, the actor renders in its own
 - the same `$t` resolution, so copy cannot differ between build and
   client
 
@@ -31,8 +31,8 @@ definition. The forms compose:
 - `0` — the root node
 - `0.2` — the root's third child (plain children index with `.`)
 - `0.2.$each.4` — the fifth repetition of a `$each` template
-- `0.1~btn` — a `btn` unit placed by `$use` at position `0.1`
-- `0.1~card.body.0` — the first child passed into the `card` unit's
+- `0.1~btn` — a `btn` actor placed by `$use` at position `0.1`
+- `0.1~card.body.0` — the first child passed into the `card` actor's
   `body` slot
 
 Both renderers stamp identical paths because both derive them from the
