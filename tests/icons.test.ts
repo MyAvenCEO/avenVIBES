@@ -224,3 +224,27 @@ suite('filled duotone geometry (Solar and kin)', () => {
 		).toThrow('fillRule')
 	})
 })
+
+suite('a duotone backing is paintable, not only dimmable', () => {
+	test('a secondary (opacity-carrying) layer fills from --icon-tint, falling back to currentColor', () => {
+		const registry = {
+			menu: {
+				viewBox: '0 0 24 24',
+				paths: [{ d: 'M2 2h20v20H2Z', opacity: 0.5 }, 'M4 8h16']
+			}
+		}
+		const svg = renderIcon('menu', registry)
+		expect(svg).toContain('fill="var(--icon-tint, currentColor)"')
+		/* The FIGURE is untouched — it inherits the svg's own currentColor, which
+		   is what keeps one icon working in both themes. */
+		expect(svg).toContain('<path d="M4 8h16"/>')
+	})
+
+	test('an explicitly filled layer keeps currentColor', () => {
+		const svg = renderIcon('x', {
+			x: { viewBox: '0 0 24 24', paths: [{ d: 'M0 0h4v4H0Z', opacity: 0.2, fill: true }] }
+		})
+		expect(svg).toContain('fill="currentColor"')
+		expect(svg).not.toContain('--icon-tint')
+	})
+})
