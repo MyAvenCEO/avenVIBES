@@ -10,6 +10,7 @@
  */
 import { expect, describe as suite, test } from 'bun:test'
 import { renderIcon, validateIcon, validateIconRegistry } from '../src/icons.js'
+import { sanitizeAttributeWhitelist } from '../src/security.js'
 import { renderViewToString } from '../src/string-renderer.js'
 import { Evaluator } from '../src/view-validator.js'
 
@@ -246,5 +247,16 @@ suite('a duotone backing is paintable, not only dimmable', () => {
 		})
 		expect(svg).toContain('fill="currentColor"')
 		expect(svg).not.toContain('--icon-tint')
+	})
+})
+
+suite('attribute sanitising keeps typography, drops escapes', () => {
+	test('an accessible name keeps its em-dash, curly apostrophe and ellipsis', () => {
+		const name = 'Inbox router — one inbox for everything, and it’s yours…'
+		expect(sanitizeAttributeWhitelist(name)).toBe(name)
+	})
+
+	test('the characters that break out of an attribute are still removed', () => {
+		expect(sanitizeAttributeWhitelist('a"b\'c<d>e`f')).toBe('abcdef')
 	})
 })
