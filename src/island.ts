@@ -122,7 +122,8 @@ export class Island {
 		const current = this.container.querySelector('[data-aven-path="0"]')
 		if (!current) return
 		const focusPath =
-			document.activeElement instanceof HTMLElement && this.container.contains(document.activeElement)
+			document.activeElement instanceof HTMLElement &&
+			this.container.contains(document.activeElement)
 				? document.activeElement.getAttribute('data-aven-path')
 				: null
 		const next = await this.viewEngine.renderTree(this.bundle.view, state)

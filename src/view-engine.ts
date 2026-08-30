@@ -198,12 +198,7 @@ export class ViewEngine {
 			if (passed) {
 				const nodes = Array.isArray(passed) ? passed : [passed]
 				for (let i = 0; i < nodes.length; i++)
-					attached += await this.hydrateNode(
-						root,
-						nodes[i],
-						data,
-						`${path}.${node.$children}.${i}`
-					)
+					attached += await this.hydrateNode(root, nodes[i], data, `${path}.${node.$children}.${i}`)
 			}
 		} else if (node.$each) {
 			const items = await this.evaluator.evaluate(node.$each.items, data)

@@ -148,6 +148,8 @@ export {
 	validateIcon,
 	validateIconRegistry
 } from './icons.js'
+export { type InboxWiringOptions, type WiredInboxes, wireInboxes } from './inboxes.js'
+export { Island, type IslandOptions } from './island.js'
 export {
 	type Address,
 	HOST,
@@ -193,8 +195,6 @@ export {
 	validateRegistry,
 	validateUnit
 } from './unit.js'
-export { Island, type IslandOptions } from './island.js'
-export { type InboxWiringOptions, type WiredInboxes, wireInboxes } from './inboxes.js'
 /**
  * The expression evaluator, and the reason it is exported.
  *

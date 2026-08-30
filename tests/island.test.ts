@@ -182,9 +182,7 @@ describe('inbox wiring without any sandbox', () => {
 				}
 			})
 			expect(warnings.join(' ')).toContain('checkout')
-			await island
-				.messageRouter()
-				.deliver({ send: 'set-open', payload: { open: true } }, 'menu')
+			await island.messageRouter().deliver({ send: 'set-open', payload: { open: true } }, 'menu')
 			await Bun.sleep(0)
 			expect(island.getState().menu).toEqual({ open: true })
 		} finally {
