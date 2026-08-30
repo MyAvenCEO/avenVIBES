@@ -99,7 +99,26 @@ export const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'poster
 export function sanitizeAttributeWhitelist(value: unknown): string {
 	if (value === null || value === undefined) return ''
 	const s = String(value)
-	return s.replace(/[^\p{L}\p{N}\s.,!?_:;@#()+=[\]~&%/-]/gu, '')
+	/*
+	 * TYPOGRAPHY IS NOT AN INJECTION RISK, and this list treated it as one.
+	 *
+	 * It admitted the hyphen and nothing else from the dash family, so an
+	 * accessible name written the way the copy is actually written — "Inbox
+	 * router — one inbox for everything" — reached the page as "Inbox router
+	 * one inbox for everything", losing the punctuation that separated the two
+	 * halves. Every em-dash, curly apostrophe and ellipsis in every localised
+	 * label went the same way, silently, because a stripped character throws
+	 * nothing.
+	 *
+	 * What makes an attribute value dangerous is breaking OUT of it: the
+	 * quote characters, the angle brackets, the backtick, and control
+	 * characters. None of those are added here. `\p{Pd}` is the dash
+	 * punctuation category, `\p{Pi}`/`\p{Pf}` the initial and final quotes
+	 * (curly quotes and guillemets), and the three literals are the curly
+	 * apostrophe, the ellipsis and the non-breaking space that German and
+	 * French copy both need.
+	 */
+	return s.replace(/[^\p{L}\p{N}\s.,!?_:;@#()+=[\]~&%/\p{Pd}\p{Pi}\p{Pf}\u2019\u2026\u00a0-]/gu, '')
 }
 
 export function sanitizePayloadForValidation(payload: unknown): unknown {
